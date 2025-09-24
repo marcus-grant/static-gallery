@@ -1,0 +1,26 @@
+[project]
+name = "gallery"
+version = "0.1.0"
+description = "Static wedding photo gallery built with Pelican"
+requires-python = ">=3.12"
+dependencies = [
+    "pelican",
+    "pillow",
+    "exifread",
+    "python-dotenv",
+    "boto3",
+    "markdown",
+    "uuid7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
