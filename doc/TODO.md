@@ -137,7 +137,43 @@ Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
 
 ## Development Tasks & Specifications
 
-### Task 1: Project Bootstrap & Sample Data
+### File System Service Module (TDD Approach)
+
+**Deliverable**: `src/services/fs.py` with minimum functionality for find_samples command
+
+#### Development Approach
+
+1. **TDD develop fs module** - Build only what find_samples command needs
+2. **Test find_samples command** - Mock fs module usage 
+3. **Add modules as needed** - When find_samples hits missing dependencies, build those modules
+
+#### Acceptance Criteria
+
+- [ ] `src/services/fs.py` with minimum viable functions for find_samples
+- [ ] Unit tests for fs module functions
+- [ ] Tests pass for fs module functionality
+- [ ] Ready to support find_samples command development
+
+#### Required fs Functions (Minimum Viable)
+
+```python
+# src/services/fs.py
+def scan_directory(path, extensions=None) -> list:
+    """Scan directory for image files with given extensions"""
+    
+def get_file_info(file_path) -> dict:
+    """Get basic file metadata (size, modified time, path)"""
+```
+
+#### Test Coverage Required
+
+- Directory scanning with various file types
+- File extension filtering 
+- File metadata extraction
+- Error handling for missing/unreadable files
+- Path handling edge cases
+
+### Project Bootstrap & Sample Data
 
 **Deliverable**: Working development environment with test photos
 
@@ -195,7 +231,7 @@ pytest>=7.0.0
 
 ---
 
-### Task 2: Settings Architecture & Command Infrastructure
+### Settings Architecture & Command Infrastructure
 
 **Deliverable**: Django-style settings hierarchy with command system
 
@@ -277,7 +313,7 @@ PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL',
 
 ---
 
-### Task 3: EXIF Processing & UUID Generation
+### EXIF Processing & UUID Generation
 
 **Deliverable**: Core logic for reading photo metadata and generating UUIDs
 
@@ -313,7 +349,7 @@ def handle_burst_sequence(photo_list) -> list:
 
 ---
 
-### Task 4: File Processing Pipeline
+### File Processing Pipeline
 
 **Deliverable**: System to rename photos and generate thumbnails
 
@@ -355,7 +391,7 @@ wedding-pics/
 
 ---
 
-### Task 5: Hetzner Integration
+### Hetzner Integration
 
 **Deliverable**: Upload/download functionality for Hetzner object storage
 
@@ -395,7 +431,7 @@ def batch_upload_photos(photo_metadata, bucket) -> dict:
 
 ---
 
-### Task 6: Static Site Generation
+### Static Site Generation
 
 **Deliverable**: Custom HTML generation with Jinja2 templates
 
@@ -453,7 +489,7 @@ STATIC_PATHS = ['css', 'js', 'img']
 
 ---
 
-### Task 7: Frontend Functionality
+### Frontend Functionality
 
 **Deliverable**: Interactive photo gallery with AlpineJS
 
@@ -494,7 +530,7 @@ Alpine.data('photoGallery', () => ({
 
 ---
 
-### Task 8: BunnyCDN Configuration
+### BunnyCDN Configuration
 
 **Deliverable**: CDN setup for global content delivery
 
@@ -516,7 +552,7 @@ Purge: Manual trigger capability
 
 ---
 
-### Task 9: Build & Deployment Pipeline
+### Build & Deployment Pipeline
 
 **Deliverable**: Automated build and deployment scripts
 
@@ -551,7 +587,7 @@ def main():
 
 ---
 
-### Task 10: Testing & Quality Assurance
+### Testing & Quality Assurance
 
 **Deliverable**: Comprehensive test suite and manual testing
 
@@ -578,7 +614,7 @@ tests/
 
 ---
 
-### Task 11: Final Deployment & Monitoring
+### Final Deployment & Monitoring
 
 **Deliverable**: Live wedding gallery accessible to guests
 
