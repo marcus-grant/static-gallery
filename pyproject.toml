@@ -19,6 +19,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-mock",
+    "pyfakefs",
     "ruff",
 ]
 
