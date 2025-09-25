@@ -67,14 +67,13 @@ class TestFindSamplesCommand:
             assert "photo2.jpeg" in result.output
             assert "not_photo.txt" not in result.output
 
-
     def test_find_samples_uses_fs_module(self):
         # Test that find_samples uses fs.ls_full instead of manual scanning
         runner = CliRunner()
 
         mock_path = "src.command.find_samples.fs.ls_full"
         settings_path = "src.command.find_samples.settings.PIC_SOURCE_PATH_FULL"
-        
+
         with patch(mock_path, return_value=[]) as mock_ls_full:
             with patch(settings_path, Path("/pics")):
                 with Patcher() as patcher:

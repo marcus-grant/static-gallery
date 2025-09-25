@@ -32,6 +32,8 @@ Get a working, acceptable user experience deployed quickly.
 - **Storage**: Hetzner object storage (private + public buckets)
 - **CDN**: BunnyCDN with Hetzner as origin
 - **Development**: Local build -> Hetzner deployment
+- **Package Management**: uv (Python package manager)
+- **Testing**: pytest with `uv run pytest` command
 
 ### Photo Processing Workflow
 
@@ -85,6 +87,8 @@ Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
 
 ### Testing Requirements
 
+- **Test Command**: Use `uv run pytest` to run tests (NOT `python -m pytest`)
+- **Specific Test Files**: Use `uv run pytest test/test_filename.py -v` for focused testing
 - ALWAYS run tests before suggesting a commit
 - Follow E2E + TDD approach:
   - E2E tests find larger missing or broken pieces
@@ -136,42 +140,6 @@ Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
   - The rest are named after key documentation areas
 
 ## Development Tasks & Specifications
-
-### File System Service Module (TDD Approach)
-
-**Deliverable**: `src/services/fs.py` with minimum functionality for find_samples command
-
-#### Development Approach
-
-1. **TDD develop fs module** - Build only what find_samples command needs
-2. **Test find_samples command** - Mock fs module usage 
-3. **Add modules as needed** - When find_samples hits missing dependencies, build those modules
-
-#### Acceptance Criteria
-
-- [ ] `src/services/fs.py` with minimum viable functions for find_samples
-- [ ] Unit tests for fs module functions
-- [ ] Tests pass for fs module functionality
-- [ ] Ready to support find_samples command development
-
-#### Required fs Functions (Minimum Viable)
-
-```python
-# src/services/fs.py
-def scan_directory(path, extensions=None) -> list:
-    """Scan directory for image files with given extensions"""
-    
-def get_file_info(file_path) -> dict:
-    """Get basic file metadata (size, modified time, path)"""
-```
-
-#### Test Coverage Required
-
-- Directory scanning with various file types
-- File extension filtering 
-- File metadata extraction
-- Error handling for missing/unreadable files
-- Path handling edge cases
 
 ### Data Models & Database Architecture
 
@@ -390,13 +358,13 @@ Based on research, cameras handle burst mode in two ways:
 
 #### Acceptance Criteria
 
-- [ ] Core EXIF extraction functions (extract_exif_data, get_datetime_taken)
-- [ ] Subsecond timestamp handling (get_subsecond_precision, combine_datetime_subsecond)
+- [x] Core EXIF extraction functions (extract_exif_data, get_datetime_taken, get_camera_info)
+- [x] Subsecond timestamp handling (get_subsecond_precision)
 - [ ] Chronological photo sorting with filename fallback
 - [ ] Burst sequence detection for both subsecond and non-subsecond cameras
 - [ ] Edge case helpers (timestamp conflicts, missing EXIF, camera diversity)
 - [ ] Integration with find_samples command for photo filtering
-- [ ] Unit tests with sample photos from different camera manufacturers
+- [x] Unit tests with sample photos from different camera manufacturers
 
 #### Required Helper Functions (Development Order)
 

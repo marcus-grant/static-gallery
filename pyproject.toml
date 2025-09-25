@@ -27,3 +27,8 @@ dev = [
 line-length = 88
 target-version = "py312"
 
+[dependency-groups]
+dev = [
+    "piexif>=1.1.3",
+]
+
