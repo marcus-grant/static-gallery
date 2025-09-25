@@ -26,3 +26,20 @@ class TestLsFull:
             assert Path("/pics/photo1.jpg") in result
             assert Path("/pics/photo2.jpeg") in result
             assert Path("/pics/photo3.png") in result
+    
+    def test_path_parameter_overrides_settings(self):
+        with Patcher() as patcher:
+            fs = patcher.fs
+            # Mock settings to point to empty directory
+            fs.create_dir("/settings_path")  # Empty directory
+            
+            # Create custom path with test files
+            fs.create_dir("/custom_path")
+            fs.create_file("/custom_path/override_photo.jpg")
+            
+            with patch('src.services.fs.settings.PIC_SOURCE_PATH_FULL', "/settings_path"):
+                result = ls_full("/custom_path")
+            
+            # Should find files in custom path, not settings path
+            assert len(result) == 1
+            assert Path("/custom_path/override_photo.jpg") in result

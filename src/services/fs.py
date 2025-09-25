@@ -1,9 +1,12 @@
 import settings
 from pathlib import Path
+from typing import Optional, List
 
 
-def ls_full():
-    path = Path(settings.PIC_SOURCE_PATH_FULL)
+def ls_full(path: Optional[str] = None) -> List[Path]:
+    if path is None:
+        path = settings.PIC_SOURCE_PATH_FULL
+    path = Path(path)
     if not path.exists():
         return []
     
