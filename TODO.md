@@ -100,18 +100,17 @@ pytest>=7.0.0
 
 #### Settings Architecture
 ```python
-# settings.py - Project defaults
-PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL', 
-                                      str(BASE_DIR / 'sample-pics')))
-CACHE_DIR = Path(os.getenv('XDG_CACHE_HOME', '~/.cache').expanduser() / 'galleria'
-                 if 'XDG_CACHE_HOME' in os.environ
-                 else BASE_DIR / 'cache')
+# Directory hierarchy with XDG compliance (XDG overrides project defaults)
+CONFIG_DIR = BASE_DIR  # Default: project root, override: ~/.config/galleria
+CACHE_DIR = BASE_DIR / 'cache'  # Default: ./cache, override: ~/.cache/galleria
 
-# Load local settings if present
-try:
-    from settings.local import *
-except ImportError:
-    pass
+# Local settings: project_root/settings.local.py (default)
+LOCAL_SETTINGS_FILENAME = os.getenv('GALLERIA_LOCAL_SETTINGS_FILENAME', 'settings.local.py')
+LOCAL_SETTINGS_PATH = CONFIG_DIR / LOCAL_SETTINGS_FILENAME
+
+# Photo paths: ./pics (default fallback), production uses XDG data directories
+PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL', 
+                                      str(BASE_DIR / 'pics')))
 ```
 
 #### Command Structure
