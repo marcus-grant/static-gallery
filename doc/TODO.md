@@ -173,6 +173,57 @@ def get_file_info(file_path) -> dict:
 - Error handling for missing/unreadable files
 - Path handling edge cases
 
+### Data Models & Database Architecture
+
+**Deliverable**: SQLAlchemy 2.0 models with SQLite backend for photo metadata
+
+#### Development Approach
+
+1. **TDD develop model classes** - Photo, EXIF data models
+2. **Database setup with async** - SQLAlchemy 2.0 + aiosqlite
+3. **Migration system** - Alembic for schema changes
+4. **Integration testing** - Async database operations
+
+#### Acceptance Criteria
+
+- [ ] `src/models/photo.py` - Photo model with SQLAlchemy 2.0
+- [ ] `src/models/database.py` - Database connection and session management
+- [ ] Async database operations with aiosqlite
+- [ ] Alembic migration setup for schema management
+- [ ] Unit tests for model operations
+- [ ] JSON serialization for API responses
+
+#### Required Models
+
+```python
+# src/models/photo.py
+class Photo(Base):
+    """Photo model with EXIF and filesystem metadata"""
+    id: Mapped[int] = mapped_column(primary_key=True)
+    path: Mapped[str] = mapped_column(String(512), unique=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    file_size: Mapped[int]
+    created_at: Mapped[datetime]
+    
+class ExifData(Base):
+    """EXIF metadata extracted from photos"""
+    id: Mapped[int] = mapped_column(primary_key=True)
+    photo_id: Mapped[int] = mapped_column(ForeignKey("photo.id"))
+    camera_make: Mapped[Optional[str]]
+    camera_model: Mapped[Optional[str]]
+    timestamp: Mapped[Optional[datetime]]
+    gps_latitude: Mapped[Optional[float]]
+    gps_longitude: Mapped[Optional[float]]
+```
+
+#### Database Features
+
+- **SQLite for development/production** - Single file, no server required
+- **Async operations** - Non-blocking database calls
+- **JSON API serialization** - Models convert to dict for FastAPI responses
+- **Query optimization** - Efficient edge case detection with SQL
+- **Migration support** - Schema evolution with Alembic
+
 ### Project Bootstrap & Sample Data
 
 **Deliverable**: Working development environment with test photos
@@ -194,7 +245,7 @@ galleria/
 |-- .gitignore
 |-- src/
 |   |-- command/       (Click commands - view layer)
-|   |-- model/         (Photo data models with JSON backing)
+|   |-- model/         (SQLAlchemy 2.0 data models with SQLite backing)
 |   |-- services/      (Business logic)
 |   `-- utils/         (Utility modules)
 |-- templates/         (Jinja2 templates - .j2.html extensions)
@@ -226,7 +277,11 @@ Pillow>=10.0.0
 exifread>=3.0.0
 python-dotenv>=1.0.0
 boto3>=1.26.0  # for S3-compatible Hetzner API
+sqlalchemy>=2.0.0  # SQLAlchemy 2.0 with async support
+aiosqlite>=0.17.0  # Async SQLite driver
+alembic>=1.13.0  # Database migrations
 pytest>=7.0.0
+pytest-asyncio>=0.21.0  # For async tests
 ```
 
 ---
@@ -310,6 +365,62 @@ PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL',
 - EXIF extraction functionality
 - JSON file save/load operations
 - Dummy sample generation
+
+---
+
+### EXIF Service Module
+
+**Deliverable**: EXIF data extraction and edge case detection service
+
+#### Development Approach
+
+1. **TDD develop EXIF extraction** - Build functions as find_samples needs them
+2. **Edge case detection** - Burst sequences, missing EXIF, timestamp conflicts  
+3. **Database integration** - Store EXIF data in SQLite via models
+4. **Async processing** - Non-blocking EXIF extraction for large photo sets
+
+#### Acceptance Criteria
+
+- [ ] `src/services/exif.py` with core EXIF extraction functions
+- [ ] Integration with fs.ls_full() for photo processing
+- [ ] Edge case detection algorithms (burst mode, conflicts)
+- [ ] Database storage via Photo and ExifData models
+- [ ] Unit tests with sample photos for various cameras
+- [ ] Async support for processing large photo collections
+
+#### Required Functions (Minimum Viable)
+
+```python
+# src/services/exif.py
+def extract_exif_data(photo_path: Path) -> dict:
+    """Extract EXIF metadata from photo file"""
+    
+def get_timestamp(exif_data: dict) -> Optional[datetime]:
+    """Parse EXIF timestamp with subsecond handling"""
+    
+def detect_burst_sequence(photos: List[Photo]) -> List[List[Photo]]:
+    """Group photos taken in rapid succession"""
+    
+def has_missing_exif(photo_path: Path) -> bool:
+    """Check if photo is missing critical EXIF data"""
+```
+
+#### Edge Cases to Handle
+
+- **Burst mode sequences** - Photos with identical/near-identical timestamps
+- **Missing EXIF data** - Corrupted or stripped metadata
+- **Timestamp conflicts** - Same timestamp from different cameras
+- **Camera variety** - Different manufacturers, EXIF formats
+- **GPS data extraction** - Location information when available
+- **Subsecond precision** - High-speed shooting timestamp resolution
+
+#### Test Coverage Required
+
+- EXIF extraction from various camera formats (Canon, Nikon, iPhone, etc.)
+- Burst sequence detection with different time intervals
+- Missing/corrupted EXIF handling
+- Database integration with async operations
+- Performance testing with large photo sets
 
 ---
 
@@ -439,7 +550,7 @@ def batch_upload_photos(photo_metadata, bucket) -> dict:
 
 - [ ] Custom Jinja2 templates with Tailwind CSS + AlpineJS
 - [ ] Gallery page template with photo grid
-- [ ] JSON metadata generation for AlpineJS
+- [ ] JSON API endpoints from SQLite data for AlpineJS frontend
 - [ ] Basic navbar and site structure
 - [ ] SEO configuration with noindex
 - [ ] Mobile-responsive design
@@ -474,8 +585,8 @@ TEMPLATES = {
     'gallery.j2.html': 'gallery.html',
 }
 
-# Generate JSON metadata for AlpineJS
-PHOTO_METADATA_JSON = True
+# Generate JSON API responses from SQLite database
+PHOTO_METADATA_SOURCE = 'sqlite'  # Photo data served from database
 STATIC_PATHS = ['css', 'js', 'img']
 ```
 
