@@ -31,7 +31,7 @@ Get a working, acceptable user experience deployed quickly.
 - **Photo Processing**: Python with Pillow, exifread
 - **Storage**: Hetzner object storage (private + public buckets)
 - **CDN**: BunnyCDN with Hetzner as origin
-- **Development**: Local build \u2192 Hetzner deployment
+- **Development**: Local build -> Hetzner deployment
 
 ### Photo Processing Workflow
 
@@ -153,25 +153,25 @@ Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
 
 ```
 galleria/
-\u251c\u2500\u2500 README.md
-\u251c\u2500\u2500 requirements.txt
-\u251c\u2500\u2500 .gitignore
-\u251c\u2500\u2500 src/
-\u2502   \u251c\u2500\u2500 command/       (Click commands - view layer)
-\u2502   \u251c\u2500\u2500 model/         (Photo data models with JSON backing)
-\u2502   \u251c\u2500\u2500 services/      (Business logic)
-\u2502   \u2514\u2500\u2500 utils/         (Utility modules)
-\u251c\u2500\u2500 templates/         (Jinja2 templates - .j2.html extensions)
-\u251c\u2500\u2500 static/            (CSS, JS, img assets)
-\u251c\u2500\u2500 output/            (Generated static site)
-\u251c\u2500\u2500 tests/
-\u251c\u2500\u2500 sample-photos/
-\u2502   \u251c\u2500\u2500 full/          (original resolution test photos)
-\u2502   \u251c\u2500\u2500 web/           (web-optimized test photos)
-\u2502   \u2514\u2500\u2500 burst/         (burst mode sequence examples)
-\u251c\u2500\u2500 settings.py
-\u251c\u2500\u2500 build.py
-\u2514\u2500\u2500 deploy.py
+|-- README.md
+|-- requirements.txt
+|-- .gitignore
+|-- src/
+|   |-- command/       (Click commands - view layer)
+|   |-- model/         (Photo data models with JSON backing)
+|   |-- services/      (Business logic)
+|   `-- utils/         (Utility modules)
+|-- templates/         (Jinja2 templates - .j2.html extensions)
+|-- static/            (CSS, JS, img assets)
+|-- output/            (Generated static site)
+|-- tests/
+|-- sample-photos/
+|   |-- full/          (original resolution test photos)
+|   |-- web/           (web-optimized test photos)
+|   `-- burst/         (burst mode sequence examples)
+|-- settings.py
+|-- build.py
+`-- deploy.py
 ```
 
 #### Sample Photo Requirements
@@ -342,15 +342,15 @@ def process_photo_collection(source_dirs) -> dict:
 
 ```
 wedding-pics/
-\u251c\u2500\u2500 full/
-\u2502   \u251c\u2500\u2500 ABC123DEF456GHI789.jpg
-\u2502   \u2514\u2500\u2500 DEF456GHI789JKL012.jpg
-\u251c\u2500\u2500 web/
-\u2502   \u251c\u2500\u2500 ABC123DEF456GHI789.jpg
-\u2502   \u2514\u2500\u2500 DEF456GHI789JKL012.jpg
-\u2514\u2500\u2500 thumb/
-    \u251c\u2500\u2500 ABC123DEF456GHI789.webp
-    \u2514\u2500\u2500 DEF456GHI789JKL012.webp
+|-- full/
+|   |-- ABC123DEF456GHI789.jpg
+|   `-- DEF456GHI789JKL012.jpg
+|-- web/
+|   |-- ABC123DEF456GHI789.jpg
+|   `-- DEF456GHI789JKL012.jpg
+`-- thumb/
+    |-- ABC123DEF456GHI789.webp
+    `-- DEF456GHI789JKL012.webp
 ```
 
 ---
@@ -532,7 +532,7 @@ Purge: Manual trigger capability
 
 ```python
 def main():
-    # 1. Process photos (EXIF \u2192 UUID \u2192 thumbnails)
+    # 1. Process photos (EXIF -> UUID -> thumbnails)
     # 2. Upload to Hetzner public bucket
     # 3. Generate JSON metadata for gallery
     # 4. Run custom HTML generation
