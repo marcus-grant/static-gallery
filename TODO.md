@@ -1,4 +1,4 @@
-# Wedding Photo Gallery - Development Specification
+# Galleria - Development Specification
 
 ## Project Overview
 
@@ -52,7 +52,7 @@ Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
 
 #### File Structure Required
 ```
-wedding-gallery/
+galleria/
 \u251c\u2500\u2500 README.md
 \u251c\u2500\u2500 requirements.txt
 \u251c\u2500\u2500 .gitignore
@@ -326,7 +326,7 @@ Alpine.data('photoGallery', () => ({
 #### CDN Configuration Required
 ```
 Origin URL: https://your-bucket.hetzner-endpoint.com
-Pull Zone: wedding-gallery-cdn
+Pull Zone: galleria-cdn
 Caching: Standard settings for images
 Purge: Manual trigger capability
 ```

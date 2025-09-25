@@ -1,4 +1,4 @@
-# Wedding Photo Gallery
+# Galleria
 
 A static wedding photo gallery built with Pelican, using AlpineJS for frontend interactions and Tailwind CSS for styling. Photos are processed with UUIDv7-based filenames derived from EXIF data and hosted on Hetzner object storage with BunnyCDN for global distribution.
 
@@ -56,7 +56,7 @@ Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
 ## Project Structure
 
 ```
-wedding-gallery/
+galleria/
 ├── README.md
 ├── requirements.txt
 ├── .gitignore
