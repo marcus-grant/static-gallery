@@ -2,7 +2,7 @@ import pytest
 import click
 import os
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 from pyfakefs.fake_filesystem_unittest import Patcher
 
@@ -29,12 +29,16 @@ class TestFindSamplesCommand:
             fs = patcher.fs
             fs.create_dir("/cli_path")
             fs.create_dir("/env_path")
+            fs.create_dir("/cache")
 
             with patch.dict(os.environ, {"GALLERIA_PIC_SOURCE_PATH_FULL": "/env_path"}):
                 result = runner.invoke(
-                    find_samples.find_samples, ["--pic-source-path-full", "/cli_path"]
+                    find_samples.find_samples,
+                    ["--pic-source-path-full", "/cli_path"],
                 )
 
+                if result.exit_code != 0:
+                    print(f"Error: {result.exception}")
                 assert result.exit_code == 0
                 # CLI arg path should be used, not env var path
                 assert "/cli_path" in result.output
@@ -51,6 +55,7 @@ class TestFindSamplesCommand:
             fs.create_file("/test_pics/photo1.jpg")
             fs.create_file("/test_pics/photo2.jpeg")
             fs.create_file("/test_pics/not_photo.txt")
+            fs.create_dir("/cache")
 
             result = runner.invoke(
                 find_samples.find_samples, ["--pic-source", "/test_pics"]
@@ -61,3 +66,21 @@ class TestFindSamplesCommand:
             assert "photo1.jpg" in result.output
             assert "photo2.jpeg" in result.output
             assert "not_photo.txt" not in result.output
+
+
+    def test_find_samples_uses_fs_module(self):
+        # Test that find_samples uses fs.ls_full instead of manual scanning
+        runner = CliRunner()
+
+        mock_path = "src.command.find_samples.fs.ls_full"
+        settings_path = "src.command.find_samples.settings.PIC_SOURCE_PATH_FULL"
+        
+        with patch(mock_path, return_value=[]) as mock_ls_full:
+            with patch(settings_path, Path("/pics")):
+                with Patcher() as patcher:
+                    patcher.fs.create_dir("/pics")
+                    result = runner.invoke(find_samples.find_samples)
+
+        assert result.exit_code == 0
+        mock_ls_full.assert_called_once_with(None)
+        assert "Found 0 photos" in result.output
