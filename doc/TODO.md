@@ -2,13 +2,30 @@
 
 ## Project Overview
 
-A static wedding photo gallery built with Pelican, using AlpineJS for frontend interactions and Tailwind CSS for styling. Photos are processed with UUIDv7-based filenames derived from EXIF data and hosted on Hetzner object storage with BunnyCDN for global distribution.
+A static photo gallery built with Pelican,
+using AlpineJS for frontend interactions and
+Tailwind CSS for styling.
+Photos are processed with UUIDv7-based filenames derived from EXIF data and
+hosted on Hetzner object storage with BunnyCDN for global distribution.
 
-**Priority**: Speed of development and deployment over feature richness. Get a working, acceptable user experience deployed quickly.
+### Conventions of Project
+
+This is going for a django style settings, command and layout structure.
+But we're also trying to find
+a middle ground between django and FastAPI conventions.
+In particular with functional paradigms,
+like @click decorated commands for example.
+Because this line between conventions is blurry, please ask.
+
+### Priority
+
+Speed of development and deployment over feature richness.
+Get a working, acceptable user experience deployed quickly.
 
 ## Stack & Workflow Overview
 
 ### Technology Stack
+
 - **Static Site Generator**: Pelican (Python 3.12)
 - **Frontend**: AlpineJS + Tailwind CSS (CDN, no build step)
 - **Photo Processing**: Python with Pillow, exifread
@@ -17,33 +34,115 @@ A static wedding photo gallery built with Pelican, using AlpineJS for frontend i
 - **Development**: Local build \u2192 Hetzner deployment
 
 ### Photo Processing Workflow
-```
-Photographer's Photos \u2192 EXIF Extraction \u2192 UUID Generation \u2192 
-Thumbnail Creation \u2192 Upload to Buckets \u2192 Static Site Generation \u2192 Deploy
+
+```txt
+Photographer's Photos -> EXIF Extraction -> UUID Generation ->
+-> Thumbnail Creation -> Upload to Buckets ->
+-> Static Site Generation -> Deploy
 ```
 
 ### Photo Organization Structure
-```
+
+```txt
 Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
-/originals/                   /wedding-pics/                  Gallery page with:
+/originals/                   /galleria-wedding/              Gallery page with:
   IMG_001.jpg                   {uuid}.jpg  (full)             - Thumbnail grid
   IMG_002.jpg                   {uuid}.jpg  (web)              - Infinite scroll
   ...                           {uuid}.webp (thumb)            - Multi-select downloads
 ```
 
 ### Storage Strategy
+
 - **Private Hetzner Bucket**: Original photos with authentication (personal archive)
 - **Public Hetzner Bucket**: Full + web + thumbnail versions (for static site)
 - **BunnyCDN**: Global CDN caching content from public Hetzner bucket
 
 ---
 
+## Important Reminders
+
+- Do what has been asked; nothing more, nothing less
+- NEVER create files unless they're absolutely necessary for achieving your goal
+- ALWAYS prefer editing an existing file to creating a new one
+- NEVER proactively create documentation files (*.md) or
+  README files unless explicitly requested
+
+## Development Guidelines
+
+### Commit Message Format
+
+- Title: Maximum 50 characters including prefix
+- Body: Maximum 72 characters per line
+- Body text should use '-' bullets with proper nesting
+- Use prefixes:
+  - `Tst:` for test-related changes
+  - `Fix:` for bug fixes
+  - `Ft:` for new features
+  - `Ref:` for refactoring
+  - `Doc:` for documentation
+  - `Pln:` for planning/TODO updates
+- No signature block - do not include emoji, links, or Co-Authored-By lines
+
+### Testing Requirements
+
+- ALWAYS run tests before suggesting a commit
+- Follow E2E + TDD approach:
+  - E2E tests find larger missing or broken pieces
+  - TDD fills or fixes those pieces incrementally
+- TDD/E2E workflow:
+  - Build tests singularly first
+  - Ensure test fails as expected (red)
+  - Implement change to make test pass (green)
+  - Consider refactors for better solution (refactor)
+  - Move to next test when complete
+- Task management:
+  - Each test typically corresponds to a TODO task
+  - Some tasks require multiple tests
+  - After test(s) pass and refactors complete: update TODO.md, git commit
+- Implement in small steps with clear logical breaks:
+  - Add one test case or feature at a time
+  - Test immediately after each testable addition
+  - Never write massive amounts of code without testing
+
+### Code Style
+
+- Follow existing patterns in the codebase
+- Check neighboring files for conventions
+- Never assume a library is available - verify in package.json/requirements
+- Don't add comments unless explicitly asked
+- Match indentation and formatting of existing code
+- Follow PEP 8, ruff and typical Python conventions:
+  - No trailing whitespace
+  - Blank line at end of file
+  - Two blank lines between top-level definitions
+  - One blank line between method definitions
+  - Spaces around operators and after commas
+  - No unnecessary blank lines within functions
+  - Maximum line length of 88 characters (Black/Ruff default)
+
+### Project-Specific Instructions
+
+- This is a pelican based gallery site generated named "Galleria"
+- Supports preprocessing copies of a specific wedding photo collection
+- Current focus areas are tracked in TODO.md
+- Keep TODO.md updated:
+  - Update "Current Tasks" section when starting/stopping work
+  - Mark completed items with [x]
+  - Add new tasks as they're discovered
+  - Document progress for easy resumption
+- Keep `./doc` updated
+  - `doc/README.md`
+    - The overview and index to other documentation documents
+  - The rest are named after key documentation areas
+
 ## Development Tasks & Specifications
 
 ### Task 1: Project Bootstrap & Sample Data
+
 **Deliverable**: Working development environment with test photos
 
 #### Acceptance Criteria
+
 - [ ] Git repository initialized with proper structure
 - [ ] Python 3.12 virtual environment configured
 - [ ] Project dependencies installed and documented
@@ -51,6 +150,7 @@ Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
 - [ ] Basic project documentation complete
 
 #### File Structure Required
+
 ```
 galleria/
 \u251c\u2500\u2500 README.md
@@ -68,6 +168,7 @@ galleria/
 ```
 
 #### Sample Photo Requirements
+
 - **Burst mode sequences**: 3-5 photos taken in rapid succession
 - **Multiple cameras**: Photos from different camera models/brands
 - **EXIF variety**: Photos with/without subsecond data, GPS coordinates
@@ -75,6 +176,7 @@ galleria/
 - **Edge cases**: Missing EXIF data, corrupted timestamps
 
 #### Dependencies (requirements.txt)
+
 ```
 pelican>=4.8.0
 Pillow>=10.0.0
@@ -87,18 +189,16 @@ pytest>=7.0.0
 ---
 
 ### Task 2: Settings Architecture & Command Infrastructure
+
 **Deliverable**: Django-style settings hierarchy with command system
 
 #### Acceptance Criteria
-- [ ] Settings hierarchy: CLI args > env vars > settings.local.py > settings.py
-- [ ] Environment variables use GALLERIA_ prefix
-- [ ] Local settings loaded from project root settings.local.py
-- [ ] XDG-compliant cache directory with fallback to ./cache
+
 - [ ] Command infrastructure with manage.py entry point
 - [ ] find-samples and list-samples commands implemented
-- [ ] Test coverage for settings precedence
 
 #### Settings Architecture
+
 ```python
 # Directory hierarchy with XDG compliance (XDG overrides project defaults)
 CONFIG_DIR = BASE_DIR  # Default: project root, override: ~/.config/galleria
@@ -114,22 +214,68 @@ PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL',
 ```
 
 #### Command Structure
+
 - manage.py - Click-based command entry point
-- src/command/find_samples.py - Scan photos, extract EXIF, save to pickle
-- src/command/list_samples.py - Display saved metadata
+- src/command/find_samples.py - Scan photos, detect edge cases, extract EXIF, save to pickle
+- src/command/list_samples.py - Display saved metadata from pickle
+
+##### find-samples Command Requirements
+**Purpose**: Identify sample photos for testing the processing pipeline
+
+**Edge Cases to Detect**:
+- Burst mode sequences (photos with identical/near-identical timestamps)
+- Missing or corrupted EXIF data
+- Timestamp conflicts (same timestamp from different cameras)
+- Camera variety (different manufacturers, filename patterns)
+- Timezone differences (using GPS data)
+- Filename edge cases (rollovers, special characters, user-renamed)
+
+**CLI Options**:
+- `--pic-source-path-full`, `--pic-source`, `-s`: Directory to scan (overrides settings)
+- `--generate-dummy-samples`: Create synthetic test images for missing edge cases
+- `--sample-types`: Comma-separated list of edge cases to detect (default: all)
+- `--output-format`: Output format - pickle, json, text (default: pickle)
+- `--cache-file`: Override default pickle file location (default: CACHE_DIR/samples.pickle)
+
+**Output Structure** (saved to pickle):
+```python
+{
+    'photos': [
+        {
+            'path': Path,
+            'exif': dict,  # Extracted EXIF data
+            'edge_cases': ['burst', 'missing_exif'],  # Detected issues
+            'camera': str,  # Camera model/manufacturer
+            'timestamp': datetime,
+            'gps': tuple,  # (lat, lon) if available
+        }
+    ],
+    'summary': {
+        'total_photos': int,
+        'edge_case_counts': {'burst': 5, 'missing_exif': 2, ...},
+        'cameras': {'Canon EOS 5D': 10, 'iPhone 12': 5, ...},
+    }
+}
+```
 
 #### Test Coverage Required
+
 - Settings import hierarchy (default, local override, env override, CLI override)
 - XDG cache directory resolution
 - Command option parsing and settings integration
+- Edge case detection logic (burst, missing EXIF, timestamp conflicts)
+- EXIF extraction functionality
 - Pickle file save/load operations
+- Dummy sample generation
 
 ---
 
 ### Task 3: EXIF Processing & UUID Generation
+
 **Deliverable**: Core logic for reading photo metadata and generating UUIDs
 
 #### Acceptance Criteria
+
 - [ ] Extract EXIF timestamp, GPS, camera model from photos
 - [ ] Generate UUIDv7 with EXIF timestamp as time component
 - [ ] Encode UUIDs as Base32 for shorter filenames
@@ -138,6 +284,7 @@ PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL',
 - [ ] All core logic unit tests passing
 
 #### Core Functions Required
+
 ```python
 def extract_exif_data(photo_path) -> dict:
     """Extract timestamp, GPS, camera info from photo"""
@@ -150,6 +297,7 @@ def handle_burst_sequence(photo_list) -> list:
 ```
 
 #### Test Coverage Required
+
 - EXIF extraction from various camera formats
 - UUID generation produces k-sortable results
 - Burst mode sequence preservation
@@ -159,9 +307,11 @@ def handle_burst_sequence(photo_list) -> list:
 ---
 
 ### Task 4: File Processing Pipeline
+
 **Deliverable**: System to rename photos and generate thumbnails
 
 #### Acceptance Criteria
+
 - [ ] Rename photos using UUID system
 - [ ] Generate WebP thumbnails from web-optimized photos
 - [ ] Maintain file associations (full/web/thumb with same UUID)
@@ -169,6 +319,7 @@ def handle_burst_sequence(photo_list) -> list:
 - [ ] Process photos in chronological order
 
 #### Processing Functions Required
+
 ```python
 def rename_photo_with_uuid(original_path, uuid_filename) -> str:
     """Rename photo file with UUID filename"""
@@ -181,6 +332,7 @@ def process_photo_collection(source_dirs) -> dict:
 ```
 
 #### Output Structure
+
 ```
 wedding-pics/
 \u251c\u2500\u2500 full/
@@ -197,9 +349,11 @@ wedding-pics/
 ---
 
 ### Task 5: Hetzner Integration
+
 **Deliverable**: Upload/download functionality for Hetzner object storage
 
 #### Acceptance Criteria
+
 - [ ] Authenticate to both private and public Hetzner buckets
 - [ ] Upload processed photos to public bucket
 - [ ] Read original photos from private bucket (if configured)
@@ -207,6 +361,7 @@ wedding-pics/
 - [ ] Support batch operations for large photo sets
 
 #### Configuration Required
+
 ```python
 # Environment variables
 HETZNER_PRIVATE_ACCESS_KEY=
@@ -219,6 +374,7 @@ HETZNER_ENDPOINT=
 ```
 
 #### Integration Functions Required
+
 ```python
 def upload_to_hetzner(file_path, bucket, key) -> bool:
     """Upload file to Hetzner bucket"""
@@ -233,9 +389,11 @@ def batch_upload_photos(photo_metadata, bucket) -> dict:
 ---
 
 ### Task 6: Static Site Generation
+
 **Deliverable**: Pelican configuration and custom theme
 
 #### Acceptance Criteria
+
 - [ ] Custom Pelican theme with Tailwind CSS + AlpineJS
 - [ ] Gallery page template with photo grid
 - [ ] JSON metadata generation for AlpineJS
@@ -244,6 +402,7 @@ def batch_upload_photos(photo_metadata, bucket) -> dict:
 - [ ] Mobile-responsive design
 
 #### Theme Structure Required
+
 ```
 themes/wedding/
 \u251c\u2500\u2500 templates/
@@ -258,6 +417,7 @@ themes/wedding/
 ```
 
 #### Pelican Configuration (pelicanconf.py)
+
 ```python
 THEME = 'themes/wedding'
 STATIC_PATHS = ['photos', 'js']
@@ -269,6 +429,7 @@ PHOTO_METADATA_JSON = True
 ```
 
 #### Gallery Template Requirements
+
 - Thumbnail grid with infinite scroll
 - Checkbox selection for photos
 - Download buttons (web/full resolution)
@@ -278,9 +439,11 @@ PHOTO_METADATA_JSON = True
 ---
 
 ### Task 7: Frontend Functionality
+
 **Deliverable**: Interactive photo gallery with AlpineJS
 
 #### Acceptance Criteria
+
 - [ ] Photo grid displays thumbnails correctly
 - [ ] Infinite scroll loads photos progressively
 - [ ] Checkbox selection updates state
@@ -289,6 +452,7 @@ PHOTO_METADATA_JSON = True
 - [ ] Mobile-responsive interaction
 
 #### AlpineJS Component Structure
+
 ```javascript
 Alpine.data('photoGallery', () => ({
     photos: [],
@@ -306,6 +470,7 @@ Alpine.data('photoGallery', () => ({
 ```
 
 #### Frontend Features Required
+
 - Lazy loading of thumbnails
 - Visual feedback for selected photos
 - Download progress indication
@@ -315,15 +480,18 @@ Alpine.data('photoGallery', () => ({
 ---
 
 ### Task 8: BunnyCDN Configuration
+
 **Deliverable**: CDN setup for global content delivery
 
 #### Acceptance Criteria
+
 - [ ] BunnyCDN pull zone configured with Hetzner as origin
 - [ ] Proper caching headers set
 - [ ] CDN URLs integrated into static site
 - [ ] Performance testing confirms global speed improvement
 
 #### CDN Configuration Required
+
 ```
 Origin URL: https://your-bucket.hetzner-endpoint.com
 Pull Zone: galleria-cdn
@@ -334,9 +502,11 @@ Purge: Manual trigger capability
 ---
 
 ### Task 9: Build & Deployment Pipeline
+
 **Deliverable**: Automated build and deployment scripts
 
 #### Acceptance Criteria
+
 - [ ] Build script processes all photos correctly
 - [ ] Pelican generates static site successfully
 - [ ] Deployment script uploads to Hetzner
@@ -344,6 +514,7 @@ Purge: Manual trigger capability
 - [ ] Full pipeline runs without manual intervention
 
 #### Build Script (build.py) Requirements
+
 ```python
 def main():
     # 1. Process photos (EXIF \u2192 UUID \u2192 thumbnails)
@@ -354,6 +525,7 @@ def main():
 ```
 
 #### Deployment Script (deploy.py) Requirements
+
 ```python
 def main():
     # 1. Upload static site to Hetzner
@@ -365,9 +537,11 @@ def main():
 ---
 
 ### Task 10: Testing & Quality Assurance
+
 **Deliverable**: Comprehensive test suite and manual testing
 
 #### Acceptance Criteria
+
 - [ ] All unit tests passing (90%+ coverage for core logic)
 - [ ] Integration tests for Hetzner API
 - [ ] Cross-browser testing (Chrome, Safari, Firefox)
@@ -376,6 +550,7 @@ def main():
 - [ ] User acceptance testing with family members
 
 #### Test Categories Required
+
 ```
 tests/
 \u251c\u2500\u2500 test_exif_processing.py
@@ -389,9 +564,11 @@ tests/
 ---
 
 ### Task 10: Final Deployment & Monitoring
+
 **Deliverable**: Live wedding gallery accessible to guests
 
 #### Acceptance Criteria
+
 - [ ] Gallery deployed with non-obvious URL
 - [ ] Performance acceptable for US and EU users
 - [ ] All download functionality working
@@ -399,6 +576,7 @@ tests/
 - [ ] Backup and monitoring in place
 
 #### Success Metrics
+
 - Gallery page loads in <3 seconds for US users via BunnyCDN
 - Thumbnail grid displays smoothly with infinite scroll
 - Individual photo downloads complete reliably
@@ -410,21 +588,25 @@ tests/
 ## Future Enhancements
 
 ### Photography Organization
+
 - **GPS-based event segmentation**: Automatic detection of preparation, ceremony, photo shoot, and reception locations
 - **Event filtering**: Jump to different parts of the day based on GPS clustering
 - **Timeline view**: Alternative layout showing photos in temporal context
 
 ### Download Improvements
+
 - **Zip file generation microservice**: Server-side zip creation for better UX with large selections
 - **Progress indicators**: Download preparation and progress feedback
 - **Batch download optimization**: Smart batching for large selections
 
 ### Content & Design
+
 - **Landing page content**: Welcome message, collection information, thank you notes (wife to write)
 - **About page**: Additional wedding information and context
 - **Advanced styling**: Custom photo layouts, animations, enhanced mobile experience
 
 ### Technical Improvements
+
 - **Python 3.13 migration**: Update to Debian's current default Python version
 - **CI/CD pipeline**: Automated build and deployment via GitHub Actions
 - **Photo metadata display**: Optional timestamp and location information
@@ -432,6 +614,7 @@ tests/
 - **Analytics**: Basic usage tracking and popular photo identification
 
 ### Performance Optimization
+
 - **Lazy loading**: Progressive image loading optimization
 - **CDN optimization**: Advanced BunnyCDN configuration for better global performance
 - **Compression**: Additional image optimization techniques
@@ -441,12 +624,14 @@ tests/
 ### TinyID vs UUIDv7 Comparison
 
 **TinyID Characteristics:**
+
 - Shorter IDs (typically 11-14 characters)
 - Timestamp-based with customizable encoding
 - Built-in collision resistance
 - Good for URL-friendly IDs
 
 **UUIDv7 + Base32 Approach (Selected):**
+
 - 26 characters (vs 36 hex chars with hyphens)
 - Easy incorporation of multiple EXIF data points
 - Standard UUID format with timestamp ordering
@@ -458,3 +643,4 @@ UUIDv7 + Base32 chosen for easier integration of multiple EXIF fields (timestamp
 ---
 
 *This specification prioritizes rapid deployment of core functionality. Features marked as "Future" can be implemented in subsequent iterations after the initial gallery is live and functional.*
+

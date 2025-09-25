@@ -54,10 +54,13 @@ class TestSettingsHierarchy:
             fs = patcher.fs
 
             # Create settings.local.py with partial overrides at the correct path
-            fs.create_file("/home/marcus/Projects/web/gallery/settings.local.py", contents=TEST_LOCAL_SETTINGS_CONTENT)
+            fs.create_file(
+                "/home/marcus/Projects/web/gallery/settings.local.py",
+                contents=TEST_LOCAL_SETTINGS_CONTENT,
+            )
 
             # Mock load_dotenv to avoid filesystem frame issues with pyfakefs
-            with patch('dotenv.load_dotenv'):
+            with patch("dotenv.load_dotenv"):
                 import settings as test_settings
 
             # Local overrides should work

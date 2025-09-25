@@ -21,8 +21,10 @@ working, acceptable user experience deployed quickly.
   compliance
 
 ### Development & Architecture
-- **[Development Specification](../TODO.md)** - Detailed development tasks, 
+- **[Development Specification](./TODO.md)** - Detailed development tasks, 
   specifications, and project roadmap
+- **[Changelog](./CHANGELOG.md)** - Record of completed features and major 
+  changes
 
 ### Getting Started
 - **[Main README](../README.md)** - Project overview, setup instructions, and 

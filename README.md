@@ -90,6 +90,10 @@ Run tests with pytest:
 pytest -v
 ```
 
-## Development
+## Documentation
 
-See TODO.md for detailed development tasks and specifications.
+All project documentation is located in the [doc/](./doc/) directory. Start with:
+
+- **[Documentation Index](./doc/README.md)** - Overview and guide to all documentation
+- **[Development Tasks](./doc/TODO.md)** - Current development tasks, specifications, and project roadmap
+- **[Changelog](./doc/CHANGELOG.md)** - History of completed features and major changes
