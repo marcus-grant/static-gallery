@@ -372,37 +372,75 @@ PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL',
 
 **Deliverable**: EXIF data extraction and edge case detection service
 
-#### Development Approach
+#### Camera Burst Mode Research Summary
 
-1. **TDD develop EXIF extraction** - Build functions as find_samples needs them
-2. **Edge case detection** - Burst sequences, missing EXIF, timestamp conflicts  
-3. **Database integration** - Store EXIF data in SQLite via models
-4. **Async processing** - Non-blocking EXIF extraction for large photo sets
+Based on research, cameras handle burst mode in two ways:
+- **With subsecond EXIF** (Canon/Nikon): SubsecTimeOriginal provides ~10ms precision 
+- **Without subsecond EXIF** (Sony/older cameras): Multiple photos share same 1-second timestamp
+
+**Detection Strategy**: Sort by EXIF timestamp + subsecond (if available), fall back to filename sequence for identical timestamps, detect bursts within ~200ms intervals.
+
+#### Development Approach (TDD Order)
+
+1. **Core EXIF extraction helpers** - Basic timestamp and camera info extraction
+2. **Timestamp utilities** - Subsecond handling and chronological sorting  
+3. **Burst detection algorithms** - Handle both subsecond and filename fallback cases
+4. **Edge case detection** - Conflicts, missing EXIF, camera diversity
+5. **Integration with find_samples** - Filter interesting photos for testing
 
 #### Acceptance Criteria
 
-- [ ] `src/services/exif.py` with core EXIF extraction functions
-- [ ] Integration with fs.ls_full() for photo processing
-- [ ] Edge case detection algorithms (burst mode, conflicts)
-- [ ] Database storage via Photo and ExifData models
-- [ ] Unit tests with sample photos for various cameras
-- [ ] Async support for processing large photo collections
+- [ ] Core EXIF extraction functions (extract_exif_data, get_datetime_taken)
+- [ ] Subsecond timestamp handling (get_subsecond_precision, combine_datetime_subsecond)
+- [ ] Chronological photo sorting with filename fallback
+- [ ] Burst sequence detection for both subsecond and non-subsecond cameras
+- [ ] Edge case helpers (timestamp conflicts, missing EXIF, camera diversity)
+- [ ] Integration with find_samples command for photo filtering
+- [ ] Unit tests with sample photos from different camera manufacturers
 
-#### Required Functions (Minimum Viable)
+#### Required Helper Functions (Development Order)
 
 ```python
-# src/services/exif.py
+# Phase 1: Core EXIF extraction
 def extract_exif_data(photo_path: Path) -> dict:
-    """Extract EXIF metadata from photo file"""
+    """Extract raw EXIF metadata from photo file"""
     
-def get_timestamp(exif_data: dict) -> Optional[datetime]:
-    """Parse EXIF timestamp with subsecond handling"""
+def get_datetime_taken(exif_data: dict) -> Optional[datetime]:
+    """Parse DateTimeOriginal EXIF tag"""
     
-def detect_burst_sequence(photos: List[Photo]) -> List[List[Photo]]:
-    """Group photos taken in rapid succession"""
+def get_subsecond_precision(exif_data: dict) -> Optional[int]:
+    """Parse SubsecTimeOriginal for burst mode precision"""
     
-def has_missing_exif(photo_path: Path) -> bool:
-    """Check if photo is missing critical EXIF data"""
+def get_camera_info(exif_data: dict) -> dict:
+    """Extract camera make, model, etc."""
+
+# Phase 2: Timestamp utilities  
+def combine_datetime_subsecond(dt: datetime, subsec: Optional[int]) -> datetime:
+    """Combine datetime with subsecond precision for accurate sorting"""
+    
+def has_subsecond_precision(exif_data: dict) -> bool:
+    """Check if camera supports subsecond timestamps"""
+
+# Phase 3: Chronological sorting
+def sort_photos_chronologically(photos: List[Path]) -> List[Tuple[Path, datetime]]:
+    """Sort photos by timestamp + filename fallback for identical times"""
+
+# Phase 4: Burst detection
+def detect_burst_sequences(sorted_photos: List[Tuple[Path, datetime]]) -> List[List[Path]]:
+    """Group photos taken in rapid succession (within ~200ms)"""
+    
+def is_burst_candidate(photo1: Path, photo2: Path, max_interval_ms: int = 200) -> bool:
+    """Check if two photos are part of same burst sequence"""
+
+# Phase 5: Edge case detection
+def find_timestamp_conflicts(photos: List[Path]) -> List[List[Path]]:
+    """Find photos with same timestamp from different cameras"""
+    
+def find_missing_exif_photos(photos: List[Path]) -> List[Path]:
+    """Find photos without critical EXIF data"""
+    
+def get_camera_diversity_samples(photos: List[Path]) -> dict:
+    """Group photos by camera make/model for diversity testing"""
 ```
 
 #### Edge Cases to Handle
