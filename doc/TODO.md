@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A static photo gallery built with Pelican,
+A static photo gallery built with a custom Python static site generator,
 using AlpineJS for frontend interactions and
 Tailwind CSS for styling.
 Photos are processed with UUIDv7-based filenames derived from EXIF data and
@@ -26,7 +26,7 @@ Get a working, acceptable user experience deployed quickly.
 
 ### Technology Stack
 
-- **Static Site Generator**: Pelican (Python 3.12)
+- **Static Site Generator**: Custom Python generator with Jinja2 (Python 3.12)
 - **Frontend**: AlpineJS + Tailwind CSS (CDN, no build step)
 - **Photo Processing**: Python with Pillow, exifread
 - **Storage**: Hetzner object storage (private + public buckets)
@@ -38,7 +38,7 @@ Get a working, acceptable user experience deployed quickly.
 ```txt
 Photographer's Photos -> EXIF Extraction -> UUID Generation ->
 -> Thumbnail Creation -> Upload to Buckets ->
--> Static Site Generation -> Deploy
+-> Custom HTML Generation -> Deploy
 ```
 
 ### Photo Organization Structure
@@ -122,7 +122,7 @@ Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
 
 ### Project-Specific Instructions
 
-- This is a pelican based gallery site generated named "Galleria"
+- This is a custom static site generator based gallery named "Galleria"
 - Supports preprocessing copies of a specific wedding photo collection
 - Current focus areas are tracked in TODO.md
 - Keep TODO.md updated:
@@ -156,13 +156,20 @@ galleria/
 \u251c\u2500\u2500 README.md
 \u251c\u2500\u2500 requirements.txt
 \u251c\u2500\u2500 .gitignore
+\u251c\u2500\u2500 src/
+\u2502   \u251c\u2500\u2500 command/       (Click commands - view layer)
+\u2502   \u251c\u2500\u2500 model/         (Photo data models with JSON backing)
+\u2502   \u251c\u2500\u2500 services/      (Business logic)
+\u2502   \u2514\u2500\u2500 utils/         (Utility modules)
+\u251c\u2500\u2500 templates/         (Jinja2 templates - .j2.html extensions)
+\u251c\u2500\u2500 static/            (CSS, JS, img assets)
+\u251c\u2500\u2500 output/            (Generated static site)
 \u251c\u2500\u2500 tests/
-\u251c\u2500\u2500 content/
-\u251c\u2500\u2500 themes/wedding/
 \u251c\u2500\u2500 sample-photos/
 \u2502   \u251c\u2500\u2500 full/          (original resolution test photos)
 \u2502   \u251c\u2500\u2500 web/           (web-optimized test photos)
 \u2502   \u2514\u2500\u2500 burst/         (burst mode sequence examples)
+\u251c\u2500\u2500 settings.py
 \u251c\u2500\u2500 build.py
 \u2514\u2500\u2500 deploy.py
 ```
@@ -178,7 +185,7 @@ galleria/
 #### Dependencies (requirements.txt)
 
 ```
-pelican>=4.8.0
+jinja2>=3.1.0
 Pillow>=10.0.0
 exifread>=3.0.0
 python-dotenv>=1.0.0
@@ -216,8 +223,8 @@ PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL',
 #### Command Structure
 
 - manage.py - Click-based command entry point
-- src/command/find_samples.py - Scan photos, detect edge cases, extract EXIF, save to pickle
-- src/command/list_samples.py - Display saved metadata from pickle
+- src/command/find_samples.py - Scan photos, detect edge cases, extract EXIF, save to JSON
+- src/command/list_samples.py - Display saved metadata from JSON
 
 ##### find-samples Command Requirements
 **Purpose**: Identify sample photos for testing the processing pipeline
@@ -234,10 +241,10 @@ PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL',
 - `--pic-source-path-full`, `--pic-source`, `-s`: Directory to scan (overrides settings)
 - `--generate-dummy-samples`: Create synthetic test images for missing edge cases
 - `--sample-types`: Comma-separated list of edge cases to detect (default: all)
-- `--output-format`: Output format - pickle, json, text (default: pickle)
-- `--cache-file`: Override default pickle file location (default: CACHE_DIR/samples.pickle)
+- `--output-format`: Output format - json, text (default: json)
+- `--cache-file`: Override default JSON file location (default: CACHE_DIR/samples.json)
 
-**Output Structure** (saved to pickle):
+**Output Structure** (saved to JSON):
 ```python
 {
     'photos': [
@@ -265,7 +272,7 @@ PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL',
 - Command option parsing and settings integration
 - Edge case detection logic (burst, missing EXIF, timestamp conflicts)
 - EXIF extraction functionality
-- Pickle file save/load operations
+- JSON file save/load operations
 - Dummy sample generation
 
 ---
@@ -390,42 +397,50 @@ def batch_upload_photos(photo_metadata, bucket) -> dict:
 
 ### Task 6: Static Site Generation
 
-**Deliverable**: Pelican configuration and custom theme
+**Deliverable**: Custom HTML generation with Jinja2 templates
 
 #### Acceptance Criteria
 
-- [ ] Custom Pelican theme with Tailwind CSS + AlpineJS
+- [ ] Custom Jinja2 templates with Tailwind CSS + AlpineJS
 - [ ] Gallery page template with photo grid
 - [ ] JSON metadata generation for AlpineJS
 - [ ] Basic navbar and site structure
 - [ ] SEO configuration with noindex
 - [ ] Mobile-responsive design
 
-#### Theme Structure Required
+#### Template Structure Required
 
 ```
-themes/wedding/
-\u251c\u2500\u2500 templates/
-\u2502   \u251c\u2500\u2500 base.html           (Tailwind + AlpineJS setup)
-\u2502   \u251c\u2500\u2500 gallery.html        (Photo grid template)
-\u2502   \u251c\u2500\u2500 index.html          (Landing page)
-\u2502   \u2514\u2500\u2500 navbar.html         (Navigation component)
-\u251c\u2500\u2500 static/
-\u2502   \u2514\u2500\u2500 js/
-\u2502       \u2514\u2500\u2500 gallery.js      (AlpineJS gallery logic)
-\u2514\u2500\u2500 theme.conf
+templates/
+-> base.j2.html             (Tailwind + AlpineJS setup)
+-> gallery.j2.html          (Photo grid template)
+-> index.j2.html            (Landing page)
+-> navbar.j2.html           (Navigation component)
+
+static/
+-> css/
+-> js/
+   -> gallery.js            (AlpineJS gallery logic)
+-> img/                     (Site assets - logos, icons)
 ```
 
-#### Pelican Configuration (pelicanconf.py)
+#### Site Generation Configuration
 
 ```python
-THEME = 'themes/wedding'
-STATIC_PATHS = ['photos', 'js']
-TEMPLATE_PAGES = {
-    'gallery.html': 'gallery.html',
+# Custom site generator settings
+TEMPLATE_DIR = 'templates/'
+STATIC_DIR = 'static/'
+OUTPUT_DIR = 'output/'
+
+# Template configuration
+TEMPLATES = {
+    'index.j2.html': 'index.html',
+    'gallery.j2.html': 'gallery.html',
 }
-# Generate JSON for AlpineJS
+
+# Generate JSON metadata for AlpineJS
 PHOTO_METADATA_JSON = True
+STATIC_PATHS = ['css', 'js', 'img']
 ```
 
 #### Gallery Template Requirements
@@ -508,7 +523,7 @@ Purge: Manual trigger capability
 #### Acceptance Criteria
 
 - [ ] Build script processes all photos correctly
-- [ ] Pelican generates static site successfully
+- [ ] Custom site generator creates static HTML successfully
 - [ ] Deployment script uploads to Hetzner
 - [ ] Non-obvious URL structure implemented
 - [ ] Full pipeline runs without manual intervention
@@ -520,7 +535,7 @@ def main():
     # 1. Process photos (EXIF \u2192 UUID \u2192 thumbnails)
     # 2. Upload to Hetzner public bucket
     # 3. Generate JSON metadata for gallery
-    # 4. Run Pelican static site generation
+    # 4. Run custom HTML generation
     # 5. Prepare for deployment
 ```
 
@@ -553,17 +568,17 @@ def main():
 
 ```
 tests/
-\u251c\u2500\u2500 test_exif_processing.py
-\u251c\u2500\u2500 test_uuid_generation.py
-\u251c\u2500\u2500 test_file_operations.py
-\u251c\u2500\u2500 test_hetzner_integration.py
-\u251c\u2500\u2500 test_static_generation.py
-\u2514\u2500\u2500 test_frontend_functionality.py
+-> test_exif_processing.py
+-> test_uuid_generation.py
+-> test_file_operations.py
+-> test_hetzner_integration.py
+-> test_static_generation.py
+-> test_frontend_functionality.py
 ```
 
 ---
 
-### Task 10: Final Deployment & Monitoring
+### Task 11: Final Deployment & Monitoring
 
 **Deliverable**: Live wedding gallery accessible to guests
 
