@@ -360,6 +360,7 @@ Based on research, cameras handle burst mode in two ways:
 
 - [x] Core EXIF extraction functions (extract_exif_data, get_datetime_taken, get_camera_info)
 - [x] Subsecond timestamp handling (get_subsecond_precision)
+- [x] Timestamp utilities (combine_datetime_subsecond, has_subsecond_precision)
 - [ ] Chronological photo sorting with filename fallback
 - [ ] Burst sequence detection for both subsecond and non-subsecond cameras
 - [ ] Edge case helpers (timestamp conflicts, missing EXIF, camera diversity)
