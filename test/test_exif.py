@@ -112,3 +112,58 @@ class TestExtractExifData:
         result = exif.extract_exif_data(photo_path)
         assert result == {}
 
+
+class TestCombineDatetimeSubsecond:
+    def test_adds_subsecond_precision_to_datetime(self):
+        """Test combines datetime with subsecond precision"""
+        dt = datetime(2023, 9, 15, 14, 30, 45)
+        subsec = 123
+        result = exif.combine_datetime_subsecond(dt, subsec)
+        # Should add 123 milliseconds
+        assert result == datetime(2023, 9, 15, 14, 30, 45, 123000)
+    
+    def test_handles_none_subsecond(self):
+        """Test returns original datetime when subsecond is None"""
+        dt = datetime(2023, 9, 15, 14, 30, 45)
+        result = exif.combine_datetime_subsecond(dt, None)
+        assert result == dt
+    
+    def test_handles_string_subsecond(self):
+        """Test handles subsecond as string (from EXIF)"""
+        dt = datetime(2023, 9, 15, 14, 30, 45)
+        result = exif.combine_datetime_subsecond(dt, "456")
+        assert result == datetime(2023, 9, 15, 14, 30, 45, 456000)
+    
+    def test_handles_two_digit_subsecond(self):
+        """Test handles two-digit subsecond (10ms precision)"""
+        dt = datetime(2023, 9, 15, 14, 30, 45)
+        result = exif.combine_datetime_subsecond(dt, "12")
+        # "12" should be interpreted as 120ms (0.12 seconds)
+        assert result == datetime(2023, 9, 15, 14, 30, 45, 120000)
+    
+    def test_handles_one_digit_subsecond(self):
+        """Test handles single-digit subsecond (100ms precision)"""
+        dt = datetime(2023, 9, 15, 14, 30, 45)
+        result = exif.combine_datetime_subsecond(dt, "5")
+        # "5" should be interpreted as 500ms (0.5 seconds)
+        assert result == datetime(2023, 9, 15, 14, 30, 45, 500000)
+
+
+class TestHasSubsecondPrecision:
+    def test_returns_true_for_photo_with_subsecond(self, create_photo_with_exif):
+        """Test returns True when SubSecTimeOriginal present"""
+        photo_path = create_photo_with_exif(SubSecTimeOriginal="123")
+        result = exif.has_subsecond_precision(photo_path)
+        assert result is True
+    
+    def test_returns_false_for_photo_without_subsecond(self, create_photo_with_exif):
+        """Test returns False when no SubSecTimeOriginal"""
+        photo_path = create_photo_with_exif(DateTimeOriginal="2023:09:15 14:30:45")
+        result = exif.has_subsecond_precision(photo_path)
+        assert result is False
+    
+    def test_handles_nonexistent_file(self):
+        """Test returns False for nonexistent file"""
+        result = exif.has_subsecond_precision("/nonexistent/photo.jpg")
+        assert result is False
+
