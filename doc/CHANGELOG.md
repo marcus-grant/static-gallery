@@ -2,6 +2,10 @@
 
 ## 2025-09-26
 
+- Implemented EXIF service module Phase 3 - chronological sorting
+- Updated sort_photos_chronologically to include camera info in results
+- Sorting now prioritizes: timestamp → camera make/model → filename
+- Better handling of multi-photographer scenarios at same timestamp
 - Implemented EXIF service module Phase 2 - timestamp utilities
 - Added combine_datetime_subsecond to merge datetime with subsecond precision
 - Added has_subsecond_precision to check for subsecond EXIF support

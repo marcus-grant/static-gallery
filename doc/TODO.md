@@ -361,7 +361,7 @@ Based on research, cameras handle burst mode in two ways:
 - [x] Core EXIF extraction functions (extract_exif_data, get_datetime_taken, get_camera_info)
 - [x] Subsecond timestamp handling (get_subsecond_precision)
 - [x] Timestamp utilities (combine_datetime_subsecond, has_subsecond_precision)
-- [ ] Chronological photo sorting with filename fallback
+- [x] Chronological photo sorting with camera/filename fallback
 - [ ] Burst sequence detection for both subsecond and non-subsecond cameras
 - [ ] Edge case helpers (timestamp conflicts, missing EXIF, camera diversity)
 - [ ] Integration with find_samples command for photo filtering
@@ -391,11 +391,11 @@ def has_subsecond_precision(exif_data: dict) -> bool:
     """Check if camera supports subsecond timestamps"""
 
 # Phase 3: Chronological sorting
-def sort_photos_chronologically(photos: List[Path]) -> List[Tuple[Path, datetime]]:
-    """Sort photos by timestamp + filename fallback for identical times"""
+def sort_photos_chronologically(photos: List[Path]) -> List[Tuple[Path, datetime, dict]]:
+    """Sort photos by timestamp + camera/filename fallback for identical times"""
 
 # Phase 4: Burst detection
-def detect_burst_sequences(sorted_photos: List[Tuple[Path, datetime]]) -> List[List[Path]]:
+def detect_burst_sequences(sorted_photos: List[Tuple[Path, datetime, dict]]) -> List[List[Path]]:
     """Group photos taken in rapid succession (within ~200ms)"""
     
 def is_burst_candidate(photo1: Path, photo2: Path, max_interval_ms: int = 200) -> bool:
@@ -416,7 +416,7 @@ def get_camera_diversity_samples(photos: List[Path]) -> dict:
 
 - **Burst mode sequences** - Photos with identical/near-identical timestamps
 - **Missing EXIF data** - Corrupted or stripped metadata
-- **Timestamp conflicts** - Same timestamp from different cameras
+- **Timestamp conflicts** - Same timestamp from different cameras (common at events with multiple photographers)
 - **Camera variety** - Different manufacturers, EXIF formats
 - **GPS data extraction** - Location information when available
 - **Subsecond precision** - High-speed shooting timestamp resolution

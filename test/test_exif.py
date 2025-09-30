@@ -167,3 +167,100 @@ class TestHasSubsecondPrecision:
         result = exif.has_subsecond_precision("/nonexistent/photo.jpg")
         assert result is False
 
+
+class TestSortPhotosChronologically:
+    def test_sorts_photos_by_timestamp(self, create_photo_with_exif):
+        """Test sorts photos by their EXIF timestamps"""
+        # Create photos with different timestamps
+        photo1 = create_photo_with_exif(
+            "photo1.jpg", 
+            DateTimeOriginal="2023:09:15 14:30:45"
+        )
+        photo2 = create_photo_with_exif(
+            "photo2.jpg",
+            DateTimeOriginal="2023:09:15 14:30:30"  # Earlier
+        )
+        photo3 = create_photo_with_exif(
+            "photo3.jpg",
+            DateTimeOriginal="2023:09:15 14:31:00"  # Later
+        )
+        
+        result = exif.sort_photos_chronologically([photo1, photo2, photo3])
+        
+        # Should be sorted by timestamp
+        assert len(result) == 3
+        assert result[0][0] == photo2  # Earliest
+        assert result[1][0] == photo1  # Middle
+        assert result[2][0] == photo3  # Latest
+        assert result[0][1] == datetime(2023, 9, 15, 14, 30, 30)
+        assert result[1][1] == datetime(2023, 9, 15, 14, 30, 45)
+        assert result[2][1] == datetime(2023, 9, 15, 14, 31, 0)
+        # Check camera info is included
+        assert isinstance(result[0][2], dict)
+        assert isinstance(result[1][2], dict)
+        assert isinstance(result[2][2], dict)
+    
+    def test_camera_then_filename_fallback_for_identical_timestamps(self, create_photo_with_exif):
+        """Test uses camera then filename for sorting when timestamps are identical"""
+        # Create photos with same timestamp but different cameras
+        photo_a = create_photo_with_exif(
+            "IMG_003.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Canon",
+            Model="EOS 5D"
+        )
+        photo_b = create_photo_with_exif(
+            "IMG_001.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Nikon",
+            Model="D850"
+        )
+        photo_c = create_photo_with_exif(
+            "IMG_002.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Canon",
+            Model="EOS 5D"
+        )
+        
+        result = exif.sort_photos_chronologically([photo_a, photo_b, photo_c])
+        
+        # Should be sorted by camera (Canon before Nikon), then filename
+        assert len(result) == 3
+        assert result[0][0] == photo_c  # Canon IMG_002
+        assert result[1][0] == photo_a  # Canon IMG_003
+        assert result[2][0] == photo_b  # Nikon IMG_001
+        # Verify camera info
+        assert result[0][2]["make"] == "Canon"
+        assert result[2][2]["make"] == "Nikon"
+    
+    def test_sorts_with_subsecond_precision(self, create_photo_with_exif):
+        """Test incorporates subsecond precision for accurate burst sorting"""
+        # Create photos with same second but different subseconds
+        photo1 = create_photo_with_exif(
+            "burst_002.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="200"  # 200ms
+        )
+        photo2 = create_photo_with_exif(
+            "burst_001.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="100"  # 100ms - should be first
+        )
+        photo3 = create_photo_with_exif(
+            "burst_003.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="300"  # 300ms
+        )
+        
+        result = exif.sort_photos_chronologically([photo1, photo2, photo3])
+        
+        # Should be sorted by subsecond precision
+        assert len(result) == 3
+        assert result[0][0] == photo2  # 100ms
+        assert result[1][0] == photo1  # 200ms
+        assert result[2][0] == photo3  # 300ms
+        # Check timestamps include subseconds
+        assert result[0][1] == datetime(2023, 9, 15, 14, 30, 45, 100000)
+        assert result[1][1] == datetime(2023, 9, 15, 14, 30, 45, 200000)
+        assert result[2][1] == datetime(2023, 9, 15, 14, 30, 45, 300000)
+

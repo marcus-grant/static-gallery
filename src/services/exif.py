@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union, Optional
+from typing import Union, Optional, List, Tuple
 from datetime import datetime
 import exifread
 
@@ -135,3 +135,61 @@ def has_subsecond_precision(photo_path: Union[Path, str]) -> bool:
     """
     subsec = get_subsecond_precision(photo_path)
     return subsec is not None
+
+
+def sort_photos_chronologically(
+    photos: List[Union[Path, str]]
+) -> List[Tuple[Path, datetime, dict]]:
+    """Sort photos by timestamp + camera/filename fallback for identical times.
+    Args:
+        photos: List of photo file paths
+    Returns:
+        List of tuples (Path, datetime, camera_info) sorted chronologically
+    """
+    # Extract timestamps and camera info for all photos
+    photo_data = []
+    for photo in photos:
+        photo_path = Path(photo)
+        dt = get_datetime_taken(photo_path)
+        camera_info = get_camera_info(photo_path)
+        
+        if dt is not None:
+            # Check if has subsecond precision
+            subsec = get_subsecond_precision(photo_path)
+            if subsec is not None:
+                dt = combine_datetime_subsecond(dt, subsec)
+            
+            photo_data.append((photo_path, dt, camera_info))
+        else:
+            # No EXIF timestamp - these will be handled separately
+            photo_data.append((photo_path, None, camera_info))
+    
+    # Separate photos with and without timestamps
+    with_timestamps = [(p, dt, cam) for p, dt, cam in photo_data if dt is not None]
+    without_timestamps = [(p, dt, cam) for p, dt, cam in photo_data if dt is None]
+    
+    # Sort by timestamp, then by camera (make+model), then by filename
+    # Create sort key that handles None values in camera info
+    def sort_key(item):
+        path, dt, cam = item
+        camera_key = (
+            cam.get("make") or "",
+            cam.get("model") or ""
+        )
+        return (dt, camera_key, path.name)
+    
+    with_timestamps.sort(key=sort_key)
+    
+    # For photos without timestamps, sort by camera then filename
+    def sort_key_no_timestamp(item):
+        path, _, cam = item
+        camera_key = (
+            cam.get("make") or "",
+            cam.get("model") or ""
+        )
+        return (camera_key, path.name)
+    
+    without_timestamps.sort(key=sort_key_no_timestamp)
+    
+    # Return with timestamp photos first, then without
+    return with_timestamps + without_timestamps
