@@ -2,6 +2,10 @@
 
 ## 2025-09-26
 
+- Implemented EXIF service module Phase 4 - burst detection
+- Added is_burst_candidate to check if photos are burst candidates
+- Added detect_burst_sequences to group burst sequences
+- Supports both subsecond and second-precision burst detection
 - Implemented EXIF service module Phase 3 - chronological sorting
 - Updated sort_photos_chronologically to include camera info in results
 - Sorting now prioritizes: timestamp → camera make/model → filename

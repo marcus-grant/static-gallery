@@ -264,3 +264,133 @@ class TestSortPhotosChronologically:
         assert result[1][1] == datetime(2023, 9, 15, 14, 30, 45, 200000)
         assert result[2][1] == datetime(2023, 9, 15, 14, 30, 45, 300000)
 
+
+class TestIsBurstCandidate:
+    def test_returns_true_for_photos_within_burst_interval(self, create_photo_with_exif):
+        """Test identifies photos taken within burst interval"""
+        photo1 = create_photo_with_exif(
+            "burst1.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="100"
+        )
+        photo2 = create_photo_with_exif(
+            "burst2.jpg", 
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="250"  # 150ms later
+        )
+        
+        result = exif.is_burst_candidate(photo1, photo2, max_interval_ms=200)
+        assert result is True
+    
+    def test_returns_false_for_photos_outside_burst_interval(self, create_photo_with_exif):
+        """Test returns False when photos are too far apart"""
+        photo1 = create_photo_with_exif(
+            "photo1.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="100"
+        )
+        photo2 = create_photo_with_exif(
+            "photo2.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="400"  # 300ms later
+        )
+        
+        result = exif.is_burst_candidate(photo1, photo2, max_interval_ms=200)
+        assert result is False
+    
+    def test_returns_false_for_missing_timestamps(self, create_photo_with_exif):
+        """Test returns False when photos lack EXIF timestamps"""
+        photo1 = create_photo_with_exif("photo1.jpg")  # No EXIF
+        photo2 = create_photo_with_exif(
+            "photo2.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45"
+        )
+        
+        result = exif.is_burst_candidate(photo1, photo2)
+        assert result is False
+
+
+class TestDetectBurstSequences:
+    def test_groups_photos_in_burst_sequences(self, create_photo_with_exif):
+        """Test groups consecutive photos within burst interval"""
+        # Create a burst sequence
+        photo1 = create_photo_with_exif(
+            "burst1.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="100"
+        )
+        photo2 = create_photo_with_exif(
+            "burst2.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45", 
+            SubSecTimeOriginal="200"  # 100ms later
+        )
+        photo3 = create_photo_with_exif(
+            "burst3.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="300"  # 100ms later
+        )
+        # Photo outside burst window
+        photo4 = create_photo_with_exif(
+            "single.jpg",
+            DateTimeOriginal="2023:09:15 14:30:46"  # 1 second later
+        )
+        
+        # Sort photos first (as per the function signature)
+        sorted_photos = exif.sort_photos_chronologically([photo1, photo2, photo3, photo4])
+        
+        # Detect burst sequences
+        result = exif.detect_burst_sequences(sorted_photos)
+        
+        # Should have 1 burst sequence with 3 photos
+        assert len(result) == 1
+        assert len(result[0]) == 3
+        assert photo1 in result[0]
+        assert photo2 in result[0]
+        assert photo3 in result[0]
+    
+    def test_detects_multiple_burst_sequences(self, create_photo_with_exif):
+        """Test identifies multiple separate burst sequences"""
+        # First burst
+        burst1_1 = create_photo_with_exif(
+            "burst1_1.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="100"
+        )
+        burst1_2 = create_photo_with_exif(
+            "burst1_2.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="200"
+        )
+        
+        # Gap
+        single = create_photo_with_exif(
+            "single.jpg",
+            DateTimeOriginal="2023:09:15 14:30:46"
+        )
+        
+        # Second burst
+        burst2_1 = create_photo_with_exif(
+            "burst2_1.jpg",
+            DateTimeOriginal="2023:09:15 14:30:47",
+            SubSecTimeOriginal="100"
+        )
+        burst2_2 = create_photo_with_exif(
+            "burst2_2.jpg",
+            DateTimeOriginal="2023:09:15 14:30:47",
+            SubSecTimeOriginal="200"
+        )
+        
+        sorted_photos = exif.sort_photos_chronologically(
+            [burst1_1, burst1_2, single, burst2_1, burst2_2]
+        )
+        result = exif.detect_burst_sequences(sorted_photos)
+        
+        # Should have 2 burst sequences
+        assert len(result) == 2
+        assert len(result[0]) == 2  # First burst
+        assert len(result[1]) == 2  # Second burst
+        assert burst1_1 in result[0]
+        assert burst1_2 in result[0]
+        assert burst2_1 in result[1]
+        assert burst2_2 in result[1]
+

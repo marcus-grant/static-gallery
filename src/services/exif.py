@@ -193,3 +193,86 @@ def sort_photos_chronologically(
     
     # Return with timestamp photos first, then without
     return with_timestamps + without_timestamps
+
+
+def is_burst_candidate(
+    photo1: Union[Path, str], photo2: Union[Path, str], max_interval_ms: int = 200
+) -> bool:
+    """Check if two photos are part of same burst sequence.
+    Args:
+        photo1: Path to first photo
+        photo2: Path to second photo  
+        max_interval_ms: Maximum milliseconds between photos to consider burst
+    Returns:
+        True if photos are within burst interval, False otherwise
+    """
+    photo1_path = Path(photo1)
+    photo2_path = Path(photo2)
+    
+    # Get timestamps for both photos
+    dt1 = get_datetime_taken(photo1_path)
+    dt2 = get_datetime_taken(photo2_path)
+    
+    # Both must have timestamps
+    if dt1 is None or dt2 is None:
+        return False
+    
+    # Add subsecond precision if available
+    subsec1 = get_subsecond_precision(photo1_path)
+    subsec2 = get_subsecond_precision(photo2_path)
+    
+    if subsec1 is not None:
+        dt1 = combine_datetime_subsecond(dt1, subsec1)
+    if subsec2 is not None:
+        dt2 = combine_datetime_subsecond(dt2, subsec2)
+    
+    # Calculate time difference in milliseconds
+    time_diff = abs((dt2 - dt1).total_seconds() * 1000)
+    
+    return time_diff <= max_interval_ms
+
+
+def detect_burst_sequences(
+    sorted_photos: List[Tuple[Path, datetime, dict]], max_interval_ms: int = 200
+) -> List[List[Path]]:
+    """Group photos taken in rapid succession (within ~200ms).
+    Args:
+        sorted_photos: List of tuples from sort_photos_chronologically
+        max_interval_ms: Maximum milliseconds between photos to consider burst
+    Returns:
+        List of burst sequences, each containing paths of burst photos
+    """
+    if not sorted_photos:
+        return []
+    
+    burst_sequences = []
+    current_burst = []
+    
+    for i, (photo_path, timestamp, camera_info) in enumerate(sorted_photos):
+        # Skip photos without timestamps
+        if timestamp is None:
+            continue
+            
+        if not current_burst:
+            # Start a new burst
+            current_burst = [photo_path]
+        else:
+            # Check if this photo is part of the current burst
+            # Compare with the last photo in current burst
+            last_photo = current_burst[-1]
+            
+            if is_burst_candidate(last_photo, photo_path, max_interval_ms):
+                # Add to current burst
+                current_burst.append(photo_path)
+            else:
+                # End current burst if it has multiple photos
+                if len(current_burst) > 1:
+                    burst_sequences.append(current_burst)
+                # Start new burst with this photo
+                current_burst = [photo_path]
+    
+    # Don't forget the last burst
+    if len(current_burst) > 1:
+        burst_sequences.append(current_burst)
+    
+    return burst_sequences
