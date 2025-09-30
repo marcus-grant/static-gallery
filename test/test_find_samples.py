@@ -83,3 +83,70 @@ class TestFindSamplesCommand:
         assert result.exit_code == 0
         mock_ls_full.assert_called_once_with(None)
         assert "Found 0 photos" in result.output
+    
+    def test_find_samples_with_bursts_filter(self):
+        """Test that find_samples can filter for burst sequences"""
+        runner = CliRunner()
+        
+        with Patcher() as patcher:
+            fs = patcher.fs
+            fs.create_dir("/test_pics")
+            # Create fake photos that would be in a burst
+            photo1 = fs.create_file("/test_pics/burst1.jpg")
+            photo2 = fs.create_file("/test_pics/burst2.jpg") 
+            photo3 = fs.create_file("/test_pics/single.jpg")
+            fs.create_dir("/cache")
+            
+            # Mock the EXIF service to return burst sequences
+            mock_exif_path = "src.command.find_samples.exif"
+            with patch(mock_exif_path) as mock_exif:
+                # Mock sort_photos_chronologically
+                mock_exif.sort_photos_chronologically.return_value = [
+                    (Path("/test_pics/burst1.jpg"), MagicMock(), {}),
+                    (Path("/test_pics/burst2.jpg"), MagicMock(), {}),
+                    (Path("/test_pics/single.jpg"), MagicMock(), {})
+                ]
+                # Mock detect_burst_sequences to return one burst
+                mock_exif.detect_burst_sequences.return_value = [
+                    [Path("/test_pics/burst1.jpg"), Path("/test_pics/burst2.jpg")]
+                ]
+                
+                result = runner.invoke(
+                    find_samples.find_samples, 
+                    ["--pic-source", "/test_pics", "--show-bursts"]
+                )
+                
+                assert result.exit_code == 0
+                assert "Burst sequence (2 photos):" in result.output
+                assert "burst1.jpg" in result.output
+                assert "burst2.jpg" in result.output
+    
+    def test_find_samples_with_missing_exif_filter(self):
+        """Test that find_samples can filter for photos without EXIF"""
+        runner = CliRunner()
+        
+        with Patcher() as patcher:
+            fs = patcher.fs
+            fs.create_dir("/test_pics")
+            # Create fake photos
+            photo1 = fs.create_file("/test_pics/good.jpg")
+            photo2 = fs.create_file("/test_pics/no_exif.jpg")
+            fs.create_dir("/cache")
+            
+            # Mock the EXIF service
+            mock_exif_path = "src.command.find_samples.exif"
+            with patch(mock_exif_path) as mock_exif:
+                # Mock find_missing_exif_photos to return one photo
+                mock_exif.find_missing_exif_photos.return_value = [
+                    Path("/test_pics/no_exif.jpg")
+                ]
+                
+                result = runner.invoke(
+                    find_samples.find_samples, 
+                    ["--pic-source", "/test_pics", "--show-missing-exif"]
+                )
+                
+                assert result.exit_code == 0
+                assert "Found 1 photo(s) without EXIF timestamps:" in result.output
+                assert "no_exif.jpg" in result.output
+                assert "good.jpg" not in result.output

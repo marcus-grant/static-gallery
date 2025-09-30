@@ -1,7 +1,13 @@
 # Galleria Changelog
 
-## 2025-09-26
+## 2025-10-01
 
+- Integrated EXIF service with find_samples command
+- Added --show-bursts flag to display burst sequences
+- Added --show-conflicts flag for timestamp conflicts
+- Added --show-missing-exif flag for photos without EXIF
+- Added --show-camera-diversity flag for camera breakdown
+- Completed entire EXIF service module - removed from TODO.md
 - Implemented EXIF service module Phase 5 - edge case detection
 - Added find_timestamp_conflicts to identify multi-photographer scenarios
 - Added find_missing_exif_photos to identify photos without timestamps
@@ -17,6 +23,9 @@
 - Implemented EXIF service module Phase 2 - timestamp utilities
 - Added combine_datetime_subsecond to merge datetime with subsecond precision
 - Added has_subsecond_precision to check for subsecond EXIF support
+
+## 2025-09-26
+
 - Implemented EXIF service module Phase 1 with core extraction helpers
 - Added extract_exif_data function for raw EXIF dictionary extraction
 - Added get_datetime_taken function to parse DateTimeOriginal timestamps
