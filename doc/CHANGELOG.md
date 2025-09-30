@@ -2,6 +2,10 @@
 
 ## 2025-09-26
 
+- Implemented EXIF service module Phase 5 - edge case detection
+- Added find_timestamp_conflicts to identify multi-photographer scenarios
+- Added find_missing_exif_photos to identify photos without timestamps
+- Added get_camera_diversity_samples for camera diversity analysis
 - Implemented EXIF service module Phase 4 - burst detection
 - Added is_burst_candidate to check if photos are burst candidates
 - Added detect_burst_sequences to group burst sequences

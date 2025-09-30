@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union, Optional, List, Tuple
+from typing import Union, Optional, List, Tuple, Dict
 from datetime import datetime
 import exifread
 
@@ -276,3 +276,100 @@ def detect_burst_sequences(
         burst_sequences.append(current_burst)
     
     return burst_sequences
+
+
+def find_timestamp_conflicts(photos: List[Union[Path, str]]) -> List[List[Path]]:
+    """Find photos with same timestamp from different cameras.
+    Args:
+        photos: List of photo file paths
+    Returns:
+        List of conflict groups, each containing paths with same timestamp
+    """
+    # Group photos by timestamp
+    timestamp_groups = {}
+    
+    for photo in photos:
+        photo_path = Path(photo)
+        dt = get_datetime_taken(photo_path)
+        
+        if dt is None:
+            continue
+            
+        # Add subsecond precision if available
+        subsec = get_subsecond_precision(photo_path)
+        if subsec is not None:
+            dt = combine_datetime_subsecond(dt, subsec)
+        
+        # Convert to string for grouping
+        timestamp_key = dt.isoformat()
+        
+        if timestamp_key not in timestamp_groups:
+            timestamp_groups[timestamp_key] = []
+        timestamp_groups[timestamp_key].append(photo_path)
+    
+    # Find groups with multiple photos from different cameras
+    conflict_groups = []
+    
+    for timestamp, group_photos in timestamp_groups.items():
+        if len(group_photos) < 2:
+            continue
+            
+        # Check if photos are from different cameras
+        cameras = set()
+        for photo_path in group_photos:
+            camera_info = get_camera_info(photo_path)
+            camera_key = (camera_info.get("make"), camera_info.get("model"))
+            cameras.add(camera_key)
+        
+        # If we have multiple different cameras, it's a conflict
+        if len(cameras) > 1:
+            conflict_groups.append(group_photos)
+    
+    return conflict_groups
+
+
+def find_missing_exif_photos(photos: List[Union[Path, str]]) -> List[Path]:
+    """Find photos without critical EXIF data.
+    Args:
+        photos: List of photo file paths
+    Returns:
+        List of paths to photos missing critical EXIF data (timestamp)
+    """
+    missing_exif = []
+    
+    for photo in photos:
+        photo_path = Path(photo)
+        
+        # Check if photo has timestamp (critical EXIF data)
+        dt = get_datetime_taken(photo_path)
+        
+        if dt is None:
+            missing_exif.append(photo_path)
+    
+    return missing_exif
+
+
+def get_camera_diversity_samples(
+    photos: List[Union[Path, str]]
+) -> Dict[Tuple[Optional[str], Optional[str]], List[Path]]:
+    """Group photos by camera make/model for diversity testing.
+    Args:
+        photos: List of photo file paths
+    Returns:
+        Dict mapping (make, model) tuples to lists of photo paths
+    """
+    camera_groups = {}
+    
+    for photo in photos:
+        photo_path = Path(photo)
+        camera_info = get_camera_info(photo_path)
+        
+        # Create camera key (make, model)
+        camera_key = (camera_info.get("make"), camera_info.get("model"))
+        
+        if camera_key not in camera_groups:
+            camera_groups[camera_key] = []
+        
+        camera_groups[camera_key].append(photo_path)
+    
+    return camera_groups

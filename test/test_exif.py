@@ -394,3 +394,126 @@ class TestDetectBurstSequences:
         assert burst2_1 in result[1]
         assert burst2_2 in result[1]
 
+
+class TestFindTimestampConflicts:
+    def test_finds_photos_with_same_timestamp_different_cameras(self, create_photo_with_exif):
+        """Test identifies photos taken at same time by different cameras"""
+        # Same timestamp, different cameras
+        canon1 = create_photo_with_exif(
+            "canon1.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Canon",
+            Model="EOS 5D"
+        )
+        nikon1 = create_photo_with_exif(
+            "nikon1.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Nikon",
+            Model="D850"
+        )
+        canon2 = create_photo_with_exif(
+            "canon2.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Canon",
+            Model="EOS R5"  # Different Canon model
+        )
+        # Different timestamp
+        other = create_photo_with_exif(
+            "other.jpg",
+            DateTimeOriginal="2023:09:15 14:30:46"
+        )
+        
+        result = exif.find_timestamp_conflicts([canon1, nikon1, canon2, other])
+        
+        # Should have one conflict group with 3 photos
+        assert len(result) == 1
+        assert len(result[0]) == 3
+        assert canon1 in result[0]
+        assert nikon1 in result[0]
+        assert canon2 in result[0]
+        assert other not in result[0]
+
+
+class TestFindMissingExifPhotos:
+    def test_identifies_photos_without_exif_data(self, create_photo_with_exif):
+        """Test finds photos missing critical EXIF data"""
+        # Photo with complete EXIF
+        complete = create_photo_with_exif(
+            "complete.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Canon",
+            Model="EOS 5D"
+        )
+        # Photo without any EXIF
+        no_exif = create_photo_with_exif("no_exif.jpg")
+        # Photo with partial EXIF (no timestamp)
+        no_timestamp = create_photo_with_exif(
+            "no_timestamp.jpg",
+            Make="Canon",
+            Model="EOS 5D"
+        )
+        
+        result = exif.find_missing_exif_photos([complete, no_exif, no_timestamp])
+        
+        # Should identify both photos without timestamps
+        assert len(result) == 2
+        assert no_exif in result
+        assert no_timestamp in result
+        assert complete not in result
+
+
+class TestGetCameraDiversitySamples:
+    def test_groups_photos_by_camera_make_model(self, create_photo_with_exif):
+        """Test groups photos by camera make/model"""
+        # Canon 5D photos
+        canon5d_1 = create_photo_with_exif(
+            "canon5d_1.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Canon",
+            Model="EOS 5D Mark IV"
+        )
+        canon5d_2 = create_photo_with_exif(
+            "canon5d_2.jpg",
+            DateTimeOriginal="2023:09:15 14:30:46",
+            Make="Canon",
+            Model="EOS 5D Mark IV"
+        )
+        # Nikon D850
+        nikon = create_photo_with_exif(
+            "nikon.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Nikon",
+            Model="D850"
+        )
+        # iPhone
+        iphone = create_photo_with_exif(
+            "iphone.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Apple",
+            Model="iPhone 13 Pro"
+        )
+        # No camera info
+        no_camera = create_photo_with_exif(
+            "no_camera.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45"
+        )
+        
+        result = exif.get_camera_diversity_samples(
+            [canon5d_1, canon5d_2, nikon, iphone, no_camera]
+        )
+        
+        # Should have groups for each camera
+        assert len(result) == 4  # 3 cameras + 1 unknown
+        
+        # Check Canon group
+        canon_key = ("Canon", "EOS 5D Mark IV")
+        assert canon_key in result
+        assert len(result[canon_key]) == 2
+        assert canon5d_1 in result[canon_key]
+        assert canon5d_2 in result[canon_key]
+        
+        # Check other cameras
+        assert ("Nikon", "D850") in result
+        assert ("Apple", "iPhone 13 Pro") in result
+        assert (None, None) in result  # Unknown camera group
+
