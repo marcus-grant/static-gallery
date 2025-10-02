@@ -107,7 +107,7 @@ class TestFindSamplesEdgeCases:
         result = runner.invoke(find_samples, ['-s', str(test_dir), '--show-bursts'])
         
         assert result.exit_code == 0
-        assert "Found 2 burst sequence(s):" in result.output
+        assert "Found 3 burst sequence(s):" in result.output
         # First burst with subsecond
         assert "burst_001.jpg" in result.output
         assert "burst_002.jpg" in result.output

@@ -76,9 +76,9 @@ def find_samples(pic_source_path_full, show_bursts, show_conflicts, show_missing
         camera_groups = exif.get_camera_diversity_samples(photos_found)
         
         click.echo(f"Found {len(camera_groups)} different camera(s):")
-        for (make, model), photos in sorted(camera_groups.items()):
+        for (make, model), photos in sorted(camera_groups.items(), key=lambda x: (x[0][0] or '', x[0][1] or '')):
             camera = f"{make or 'Unknown'} {model or 'Unknown'}".strip()
-            if camera == "":
+            if camera == "Unknown Unknown":
                 camera = "Unknown camera"
             click.echo(f"\n{camera}: {len(photos)} photos")
             # Show first few examples

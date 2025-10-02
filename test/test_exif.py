@@ -393,6 +393,109 @@ class TestDetectBurstSequences:
         assert burst1_2 in result[0]
         assert burst2_1 in result[1]
         assert burst2_2 in result[1]
+    
+    def test_burst_requires_same_camera(self, create_photo_with_exif):
+        """Test that burst detection only groups photos from same camera"""
+        # Same timestamp, different cameras - should NOT be a burst
+        canon = create_photo_with_exif(
+            "canon.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="100",
+            Make="Canon",
+            Model="EOS 5D"
+        )
+        nikon = create_photo_with_exif(
+            "nikon.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="150",  # Only 50ms later
+            Make="Nikon",
+            Model="D850"
+        )
+        sony = create_photo_with_exif(
+            "sony.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="200",  # Only 50ms later from nikon
+            Make="Sony", 
+            Model="A7R"
+        )
+        
+        # Same camera burst for comparison - make it closer in time
+        canon2 = create_photo_with_exif(
+            "canon2.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="250",  # 150ms after first Canon
+            Make="Canon",
+            Model="EOS 5D"
+        )
+        
+        sorted_photos = exif.sort_photos_chronologically([canon, nikon, sony, canon2])
+        result = exif.detect_burst_sequences(sorted_photos)
+        
+        
+        # No bursts should be detected because:
+        # 1. The Canon photos are not consecutive (separated by other cameras)
+        # 2. Each camera only has 1-2 non-consecutive photos
+        assert len(result) == 0
+        
+        # Now test with consecutive same-camera photos
+        canon3 = create_photo_with_exif(
+            "canon3.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            SubSecTimeOriginal="120",  # 20ms after first Canon
+            Make="Canon",
+            Model="EOS 5D"
+        )
+        
+        sorted_photos2 = exif.sort_photos_chronologically([canon, canon3, nikon, sony])
+        result2 = exif.detect_burst_sequences(sorted_photos2)
+        
+        # Now we should have one burst (the two consecutive Canon photos)
+        assert len(result2) == 1
+        assert len(result2[0]) == 2
+        assert canon in result2[0]
+        assert canon3 in result2[0]
+    
+    def test_burst_detection_without_subsecond_same_camera(self, create_photo_with_exif):
+        """Test burst detection for same-second photos without subsecond data"""
+        # Photos with same timestamp, same camera, but no subsecond data
+        # This represents older cameras that can still shoot bursts
+        photo1 = create_photo_with_exif(
+            "IMG_100.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Canon",
+            Model="EOS 40D"
+        )
+        photo2 = create_photo_with_exif(
+            "IMG_101.jpg", 
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Canon",
+            Model="EOS 40D"
+        )
+        photo3 = create_photo_with_exif(
+            "IMG_102.jpg",
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Canon", 
+            Model="EOS 40D"
+        )
+        # Different second
+        photo4 = create_photo_with_exif(
+            "IMG_200.jpg",
+            DateTimeOriginal="2023:09:15 14:30:46",
+            Make="Canon",
+            Model="EOS 40D"
+        )
+        
+        sorted_photos = exif.sort_photos_chronologically([photo1, photo2, photo3, photo4])
+        result = exif.detect_burst_sequences(sorted_photos)
+        
+        # With same camera and sequential filenames at same second,
+        # these should be detected as a burst sequence
+        assert len(result) == 1
+        assert len(result[0]) == 3
+        assert photo1 in result[0]
+        assert photo2 in result[0] 
+        assert photo3 in result[0]
+        assert photo4 not in result[0]  # Different second
 
 
 class TestFindTimestampConflicts:

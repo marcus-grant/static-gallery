@@ -247,21 +247,27 @@ def detect_burst_sequences(
     
     burst_sequences = []
     current_burst = []
+    current_camera = None
     
     for i, (photo_path, timestamp, camera_info) in enumerate(sorted_photos):
         # Skip photos without timestamps
         if timestamp is None:
             continue
             
+        # Get camera identifier
+        camera_key = (camera_info.get("make"), camera_info.get("model"))
+            
         if not current_burst:
             # Start a new burst
             current_burst = [photo_path]
+            current_camera = camera_key
         else:
             # Check if this photo is part of the current burst
-            # Compare with the last photo in current burst
+            # Must be same camera AND within time interval
             last_photo = current_burst[-1]
+            same_camera = camera_key == current_camera
             
-            if is_burst_candidate(last_photo, photo_path, max_interval_ms):
+            if same_camera and is_burst_candidate(last_photo, photo_path, max_interval_ms):
                 # Add to current burst
                 current_burst.append(photo_path)
             else:
@@ -270,6 +276,7 @@ def detect_burst_sequences(
                     burst_sequences.append(current_burst)
                 # Start new burst with this photo
                 current_burst = [photo_path]
+                current_camera = camera_key
     
     # Don't forget the last burst
     if len(current_burst) > 1:
