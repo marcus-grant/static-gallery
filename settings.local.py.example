@@ -1,0 +1,16 @@
+# Example local settings for real-world photo testing
+# Copy this to settings.local.py and customize paths
+
+from pathlib import Path
+
+# Point to your real photo collection for testing
+PIC_SOURCE_PATH_FULL = Path('/path/to/your/real/photos')
+
+# Example paths for different photo collections:
+# PIC_SOURCE_PATH_FULL = Path('/Users/yourname/Pictures/Wedding Photos')
+# PIC_SOURCE_PATH_FULL = Path('/home/yourname/photos/camera-test-collection')
+# PIC_SOURCE_PATH_FULL = Path('~/Desktop/test-photos').expanduser()
+
+# TODO: Consider adding TEST_OUTPUT_PATH for test results
+# to keep them separate from production processing paths
+# TEST_OUTPUT_PATH = Path('/tmp/galleria-test-output')

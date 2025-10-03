@@ -58,3 +58,7 @@ if LOCAL_SETTINGS_PATH.exists():
 PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL', str(PIC_SOURCE_PATH_FULL)))
 OUTPUT_DIR = Path(os.getenv('GALLERIA_OUTPUT_DIR', str(OUTPUT_DIR)))
 PROCESSED_DIR = Path(os.getenv('GALLERIA_PROCESSED_DIR', str(PROCESSED_DIR)))
+
+# TODO: Consider adding TEST_OUTPUT_PATH setting for real-world testing
+# This would allow test outputs to be separate from production processing paths
+# TEST_OUTPUT_PATH = Path(os.getenv('GALLERIA_TEST_OUTPUT_PATH', str(BASE_DIR / 'test-output')))

@@ -1,9 +1,14 @@
 import pytest
-from click.testing import CliRunner
+import click
+import os
 from pathlib import Path
+from unittest.mock import patch, MagicMock
+from click.testing import CliRunner
+from pyfakefs.fake_filesystem_unittest import Patcher
 from PIL import Image
 import piexif
-from src.command.find_samples import find_samples
+from src.command import find_samples
+from src.command.find_samples import find_samples as find_samples_cmd
 
 
 @pytest.fixture
@@ -44,7 +49,7 @@ class TestFindSamplesCameraFormatting:
         create_photo_with_camera_info("no_exif_3.jpg")
         
         runner = CliRunner()
-        result = runner.invoke(find_samples, ['-s', str(tmp_path), '--show-camera-diversity'])
+        result = runner.invoke(find_samples_cmd, ['-s', str(tmp_path), '--show-camera-diversity'])
         
         assert result.exit_code == 0
         # Should display "Unknown camera" not "Unknown Unknown"  
@@ -64,7 +69,7 @@ class TestFindSamplesCameraSorting:
         create_photo_with_camera_info("apple.jpg", Make="Apple", Model="iPhone")
         
         runner = CliRunner()
-        result = runner.invoke(find_samples, ['-s', str(tmp_path), '--show-camera-diversity'])
+        result = runner.invoke(find_samples_cmd, ['-s', str(tmp_path), '--show-camera-diversity'])
         
         # Should not crash with TypeError about comparing None
         assert result.exit_code == 0
