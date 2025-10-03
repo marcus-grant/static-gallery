@@ -1,5 +1,15 @@
 # Galleria Changelog
 
+## 2025-10-03
+
+- Completed E2E testing for EXIF service integration
+- Fixed burst detection to require same camera
+- Fixed camera diversity sorting with None values
+- Added command-level tests for find_samples
+- All edge cases now properly handled with TDD coverage
+- Findings: Burst detection is slightly over-eager but acceptable
+  as chronological sequencing accuracy is the priority
+
 ## 2025-10-01
 
 - Integrated EXIF service with find_samples command

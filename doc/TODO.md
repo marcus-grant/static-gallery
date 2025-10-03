@@ -262,11 +262,11 @@ pytest-asyncio>=0.21.0  # For async tests
 
 #### Acceptance Criteria
 
-- [ ] End-to-end testing for find-samples command with all filter flags
+- [x] End-to-end testing for find-samples command with all filter flags
 - [ ] Real-world testing with diverse photo collections
 - [ ] Performance testing with large photo sets (1000+ photos)
-- [ ] Edge case validation with actual camera manufacturer samples
-- [ ] Documentation of findings and any required adjustments
+- [x] Edge case validation with actual camera manufacturer samples
+- [x] Documentation of findings and any required adjustments
 
 #### E2E Test Requirements
 
@@ -279,14 +279,21 @@ pytest-asyncio>=0.21.0  # For async tests
 
 #### Real-world Validation Tasks
 
-- [ ] Test with Canon burst sequences (subsecond precision)
-- [ ] Test with Sony/older camera burst sequences (no subsecond)
+- [x] Test with Canon burst sequences (subsecond precision)
+- [x] Test with Sony/older camera burst sequences (no subsecond)
 - [ ] Test with iPhone/smartphone photos
-- [ ] Test with mixed-camera wedding/event scenarios
-- [ ] Test with photos missing EXIF data
-- [ ] Test with corrupted or partial EXIF data
-- [ ] Document any edge cases or issues discovered
+- [x] Test with mixed-camera wedding/event scenarios
+- [x] Test with photos missing EXIF data
+- [x] Test with corrupted or partial EXIF data
+- [x] Document any edge cases or issues discovered
 - [ ] Validate performance with 1000+ photo collections
+
+#### Findings from E2E Testing
+
+- Burst detection works but is slightly over-eager (detects identical timestamps as bursts)
+- This is acceptable as chronological sequencing accuracy is the priority
+- Camera diversity sorting requires None-safe comparison
+- All edge cases properly handled with comprehensive test coverage
 
 ---
 
