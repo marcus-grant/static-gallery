@@ -1,11 +1,16 @@
 import pytest
 import time
-import psutil
 import os
 from pathlib import Path
 from click.testing import CliRunner
 from src.command.find_samples import find_samples
 import settings
+
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
 
 
 @pytest.mark.realworld
@@ -33,6 +38,9 @@ class TestPerformanceRealPhotos:
         """Test basic photo scanning performance"""
         if not settings.PIC_SOURCE_PATH_FULL.exists():
             pytest.skip("No real photos configured")
+        
+        if not HAS_PSUTIL:
+            pytest.skip("psutil not available for memory monitoring")
         
         runner = CliRunner()
         
