@@ -1,9 +1,9 @@
 import pytest
-from click.testing import CliRunner
+import subprocess
+import sys
 from pathlib import Path
 from PIL import Image
 import piexif
-from src.command.find_samples import find_samples
 
 
 @pytest.fixture
@@ -102,45 +102,63 @@ class TestFindSamplesEdgeCases:
     def test_burst_detection_with_subsecond(self, create_edge_case_photos):
         """Test burst detection with subsecond precision"""
         test_dir, photos = create_edge_case_photos()
-        runner = CliRunner()
+        project_root = Path(__file__).parent.parent
         
-        result = runner.invoke(find_samples, ['-s', str(test_dir), '--show-bursts'])
+        result = subprocess.run(
+            [sys.executable, "manage.py", "find-samples", "-s", str(test_dir), "--show-bursts"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
         
-        assert result.exit_code == 0
-        assert "Found 3 burst sequence(s):" in result.output
+        assert result.returncode == 0, f"Command failed: {result.stderr}"
+        assert "Found 3 burst sequence(s):" in result.stdout
         # First burst with subsecond
-        assert "burst_001.jpg" in result.output
-        assert "burst_002.jpg" in result.output
-        assert "burst_003.jpg" in result.output
+        assert "burst_001.jpg" in result.stdout
+        assert "burst_002.jpg" in result.stdout
+        assert "burst_003.jpg" in result.stdout
         # Second burst without subsecond (old cameras)
-        assert "old_burst_1.jpg" in result.output
-        assert "old_burst_2.jpg" in result.output
+        assert "old_burst_1.jpg" in result.stdout
+        assert "old_burst_2.jpg" in result.stdout
     
     def test_timestamp_conflicts_different_cameras(self, create_edge_case_photos):
         """Test detection of same timestamp from different photographers"""
         test_dir, photos = create_edge_case_photos()
-        runner = CliRunner()
+        project_root = Path(__file__).parent.parent
         
-        result = runner.invoke(find_samples, ['-s', str(test_dir), '--show-conflicts'])
+        result = subprocess.run(
+            [sys.executable, "manage.py", "find-samples", "-s", str(test_dir), "--show-conflicts"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
         
-        assert result.exit_code == 0
+        assert result.returncode == 0, f"Command failed: {result.stderr}"
         # Should find at least the multi-photographer scenario
-        assert "timestamp conflict(s):" in result.output
-        assert "Canon EOS 5D Mark IV" in result.output
-        assert "Nikon D850" in result.output
-        assert "Sony A7R IV" in result.output
+        assert "timestamp conflict(s):" in result.stdout
+        assert "Canon EOS 5D Mark IV" in result.stdout
+        assert "Nikon D850" in result.stdout
+        assert "Sony A7R IV" in result.stdout
     
     def test_sorting_with_filename_fallback(self, create_edge_case_photos):
         """Test that identical timestamp+camera falls back to filename sorting"""
         test_dir, photos = create_edge_case_photos()
-        runner = CliRunner()
+        project_root = Path(__file__).parent.parent
         
         # Use basic listing to see sort order
-        result = runner.invoke(find_samples, ['-s', str(test_dir)])
+        result = subprocess.run(
+            [sys.executable, "manage.py", "find-samples", "-s", str(test_dir)],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
         
-        assert result.exit_code == 0
+        assert result.returncode == 0, f"Command failed: {result.stderr}"
         # Check that IMG_050 comes before IMG_100 and IMG_200
-        output_lines = result.output.split('\n')
+        output_lines = result.stdout.split('\n')
         img_lines = [line for line in output_lines if 'IMG_' in line]
         
         # Find positions
@@ -153,32 +171,44 @@ class TestFindSamplesEdgeCases:
     def test_missing_exif_detection(self, create_edge_case_photos):
         """Test detection of photos without timestamps"""
         test_dir, photos = create_edge_case_photos()
-        runner = CliRunner()
+        project_root = Path(__file__).parent.parent
         
-        result = runner.invoke(find_samples, ['-s', str(test_dir), '--show-missing-exif'])
+        result = subprocess.run(
+            [sys.executable, "manage.py", "find-samples", "-s", str(test_dir), "--show-missing-exif"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
         
-        assert result.exit_code == 0
-        assert "Found 5 photo(s) without EXIF timestamps:" in result.output
+        assert result.returncode == 0, f"Command failed: {result.stderr}"
+        assert "Found 5 photo(s) without EXIF timestamps:" in result.stdout
         # No EXIF at all
-        assert "no_exif_a.jpg" in result.output
-        assert "no_exif_b.jpg" in result.output
-        assert "no_exif_c.jpg" in result.output
+        assert "no_exif_a.jpg" in result.stdout
+        assert "no_exif_b.jpg" in result.stdout
+        assert "no_exif_c.jpg" in result.stdout
         # Partial EXIF (camera but no timestamp)
-        assert "partial_canon.jpg" in result.output
-        assert "partial_nikon.jpg" in result.output
+        assert "partial_canon.jpg" in result.stdout
+        assert "partial_nikon.jpg" in result.stdout
     
     def test_camera_diversity_with_unknowns(self, create_edge_case_photos):
         """Test camera diversity including unknown cameras"""
         test_dir, photos = create_edge_case_photos()
-        runner = CliRunner()
+        project_root = Path(__file__).parent.parent
         
-        result = runner.invoke(find_samples, ['-s', str(test_dir), '--show-camera-diversity'])
+        result = subprocess.run(
+            [sys.executable, "manage.py", "find-samples", "-s", str(test_dir), "--show-camera-diversity"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
         
-        assert result.exit_code == 0
+        assert result.returncode == 0, f"Command failed: {result.stderr}"
         # Should show all cameras including unknown
-        assert "Canon EOS R5" in result.output
-        assert "Canon EOS 5D Mark IV" in result.output
-        assert "Nikon D850" in result.output
-        assert "Sony A7R IV" in result.output
-        assert "Canon EOS 40D" in result.output
-        assert "Unknown camera: 3 photos" in result.output  # The no_exif photos
+        assert "Canon EOS R5" in result.stdout
+        assert "Canon EOS 5D Mark IV" in result.stdout
+        assert "Nikon D850" in result.stdout
+        assert "Sony A7R IV" in result.stdout
+        assert "Canon EOS 40D" in result.stdout
+        assert "Unknown camera: 3 photos" in result.stdout  # The no_exif photos

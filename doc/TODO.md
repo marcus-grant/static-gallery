@@ -254,57 +254,16 @@ pytest-asyncio>=0.21.0  # For async tests
 
 ---
 
-### EXIF Service Module - E2E Testing & Real-world Validation
-
-**Priority**: Complete before moving to next features
-
-**Deliverable**: Comprehensive testing and validation of EXIF service integration
-
-#### Acceptance Criteria
-
-- [x] End-to-end testing for find-samples command with all filter flags
-- [ ] Real-world testing with diverse photo collections
-- [ ] Performance testing with large photo sets (1000+ photos)
-- [x] Edge case validation with actual camera manufacturer samples
-- [x] Documentation of findings and any required adjustments
-
-#### E2E Test Requirements
-
-- Test find-samples command with real photo collections
-- Validate burst detection accuracy across different camera types
-- Test timestamp conflict detection with multi-photographer scenarios
-- Verify missing EXIF detection with various file types
-- Test camera diversity analysis with mixed manufacturer collections
-- Performance benchmarking with large datasets
-
-#### Real-world Validation Tasks
-
-- [x] Test with Canon burst sequences (subsecond precision)
-- [x] Test with Sony/older camera burst sequences (no subsecond)
-- [ ] Test with iPhone/smartphone photos
-- [x] Test with mixed-camera wedding/event scenarios
-- [x] Test with photos missing EXIF data
-- [x] Test with corrupted or partial EXIF data
-- [x] Document any edge cases or issues discovered
-- [ ] Validate performance with 1000+ photo collections
-
-#### Findings from E2E Testing
-
-- Burst detection works but is slightly over-eager (detects identical timestamps as bursts)
-- This is acceptable as chronological sequencing accuracy is the priority
-- Camera diversity sorting requires None-safe comparison
-- All edge cases properly handled with comprehensive test coverage
-
----
-
 ### Settings Architecture & Command Infrastructure
 
 **Deliverable**: Django-style settings hierarchy with command system
 
 #### Acceptance Criteria
 
-- [ ] Command infrastructure with manage.py entry point
-- [ ] find-samples and list-samples commands implemented
+- [x] Command infrastructure with manage.py entry point
+- [x] find-samples command implemented with all edge case detection
+- [ ] list-samples command implemented  
+- [ ] Settings hierarchy with TEST_OUTPUT_PATH for separating test results from production paths
 
 #### Settings Architecture
 
@@ -320,6 +279,10 @@ LOCAL_SETTINGS_PATH = CONFIG_DIR / LOCAL_SETTINGS_FILENAME
 # Photo paths: ./pics (default fallback), production uses XDG data directories
 PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL', 
                                       str(BASE_DIR / 'pics')))
+
+# Test output paths: Keep test results separate from production processing
+TEST_OUTPUT_PATH = Path(os.getenv('GALLERIA_TEST_OUTPUT_PATH', 
+                                  str(CACHE_DIR / 'test-output')))
 ```
 
 #### Command Structure

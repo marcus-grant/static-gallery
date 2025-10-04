@@ -149,6 +149,40 @@ class TestCombineDatetimeSubsecond:
         assert result == datetime(2023, 9, 15, 14, 30, 45, 500000)
 
 
+class TestExtractFilenameSequence:
+    def test_extracts_sequence_from_canon_filename(self):
+        """Test extracts sequence number from Canon camera filename"""
+        result = exif.extract_filename_sequence("4F6A5096.JPG")
+        assert result == 5096
+    
+    def test_extracts_sequence_from_other_canon_prefix(self):
+        """Test extracts sequence from different Canon prefix"""
+        result = exif.extract_filename_sequence("5W9A2423.JPG")
+        assert result == 2423
+    
+    def test_extracts_sequence_from_img_filename(self):
+        """Test extracts sequence from IMG_ pattern"""
+        result = exif.extract_filename_sequence("IMG_1234.JPG")
+        assert result == 1234
+    
+    def test_extracts_sequence_from_dsc_filename(self):
+        """Test extracts sequence from DSC pattern"""
+        result = exif.extract_filename_sequence("DSC_5678.JPG")
+        assert result == 5678
+    
+    def test_returns_zero_for_unknown_pattern(self):
+        """Test returns 0 for unrecognized filename pattern"""
+        result = exif.extract_filename_sequence("random_filename.jpg")
+        assert result == 0
+    
+    def test_handles_path_object(self):
+        """Test handles pathlib.Path objects"""
+        from pathlib import Path
+        path = Path("4F6A5096.JPG")
+        result = exif.extract_filename_sequence(path)
+        assert result == 5096
+
+
 class TestHasSubsecondPrecision:
     def test_returns_true_for_photo_with_subsecond(self, create_photo_with_exif):
         """Test returns True when SubSecTimeOriginal present"""
@@ -263,6 +297,52 @@ class TestSortPhotosChronologically:
         assert result[0][1] == datetime(2023, 9, 15, 14, 30, 45, 100000)
         assert result[1][1] == datetime(2023, 9, 15, 14, 30, 45, 200000)
         assert result[2][1] == datetime(2023, 9, 15, 14, 30, 45, 300000)
+    
+    def test_sorts_same_camera_by_numeric_filename_sequence(self, create_photo_with_exif):
+        """Test that photos with same timestamp+camera are sorted by numeric filename sequence"""
+        # Create photos where alphabetical sorting would be wrong
+        photo1 = create_photo_with_exif(
+            "4F6A2000.JPG",  # Alphabetically: "4F6A2000.JPG" comes after "4F6A1000.JPG" 
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Canon", Model="EOS R5"
+        )
+        photo2 = create_photo_with_exif(
+            "4F6A9000.JPG",  # Highest numeric value
+            DateTimeOriginal="2023:09:15 14:30:45", 
+            Make="Canon", Model="EOS R5"
+        )
+        photo3 = create_photo_with_exif(
+            "4F6A1000.JPG",  # Lowest numeric value
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Canon", Model="EOS R5"
+        )
+        
+        # Sort the photos
+        result = exif.sort_photos_chronologically([photo1, photo2, photo3])
+        
+        # Should be sorted by numeric sequence: 1000, 2000, 9000
+        # Current alphabetical sorting would give: 1000, 2000, 9000 (which happens to be correct)
+        # Let's try a case where it matters
+        
+        # Create a case where alphabetical != numeric
+        photo_a = create_photo_with_exif(
+            "4F6A1001.JPG",  # Numeric: 1001 (should be first)
+            DateTimeOriginal="2023:09:15 14:30:45",
+            Make="Canon", Model="EOS R5"
+        )
+        photo_b = create_photo_with_exif(
+            "4F6A999.JPG",   # Numeric: 999 (should be second) but alphabetically comes after 1001
+            DateTimeOriginal="2023:09:15 14:30:45", 
+            Make="Canon", Model="EOS R5"
+        )
+        
+        result2 = exif.sort_photos_chronologically([photo_a, photo_b])
+        
+        # Current alphabetical sorting: 1001, 999 (wrong!)
+        # Numeric sorting should be: 999, 1001 (correct)
+        # This test should fail with current implementation
+        assert result2[0][0].name == "4F6A999.JPG"   # Should be first (lowest number)
+        assert result2[1][0].name == "4F6A1001.JPG"  # Should be second (higher number)
 
 
 class TestIsBurstCandidate:

@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Union, Optional, List, Tuple, Dict
 from datetime import datetime
 import exifread
+import re
 
 
 def get_datetime_taken(photo_path: Union[Path, str]) -> Optional[datetime]:
@@ -168,7 +169,7 @@ def sort_photos_chronologically(
     with_timestamps = [(p, dt, cam) for p, dt, cam in photo_data if dt is not None]
     without_timestamps = [(p, dt, cam) for p, dt, cam in photo_data if dt is None]
     
-    # Sort by timestamp, then by camera (make+model), then by filename
+    # Sort by timestamp, then by camera (make+model), then by filename sequence
     # Create sort key that handles None values in camera info
     def sort_key(item):
         path, dt, cam = item
@@ -176,18 +177,22 @@ def sort_photos_chronologically(
             cam.get("make") or "",
             cam.get("model") or ""
         )
-        return (dt, camera_key, path.name)
+        # Use numeric filename sequence instead of alphabetical filename
+        filename_sequence = extract_filename_sequence(path)
+        return (dt, camera_key, filename_sequence, path.name)
     
     with_timestamps.sort(key=sort_key)
     
-    # For photos without timestamps, sort by camera then filename
+    # For photos without timestamps, sort by camera then filename sequence
     def sort_key_no_timestamp(item):
         path, _, cam = item
         camera_key = (
             cam.get("make") or "",
             cam.get("model") or ""
         )
-        return (camera_key, path.name)
+        # Use numeric filename sequence instead of alphabetical filename
+        filename_sequence = extract_filename_sequence(path)
+        return (camera_key, filename_sequence, path.name)
     
     without_timestamps.sort(key=sort_key_no_timestamp)
     
@@ -380,3 +385,42 @@ def get_camera_diversity_samples(
         camera_groups[camera_key].append(photo_path)
     
     return camera_groups
+
+
+def extract_filename_sequence(filename: Union[Path, str]) -> int:
+    """Extract sequence number from camera filename.
+    
+    Supports common camera filename patterns:
+    - Canon: 4F6A5096.JPG -> 5096
+    - Canon: 5W9A2423.JPG -> 2423  
+    - Generic: IMG_1234.JPG -> 1234
+    - Generic: DSC_5678.JPG -> 5678
+    
+    Args:
+        filename: Photo filename or path
+    Returns:
+        Sequence number as integer, 0 if pattern not recognized
+    """
+    if isinstance(filename, Path):
+        filename = filename.name
+    
+    # Remove extension
+    name_without_ext = filename.rsplit('.', 1)[0]
+    
+    # Canon pattern: 4-char prefix + 4-digit number (e.g., 4F6A5096, 5W9A2423)
+    canon_match = re.match(r'^[A-Z0-9]{4}(\d{4})$', name_without_ext)
+    if canon_match:
+        return int(canon_match.group(1))
+    
+    # IMG pattern: IMG_nnnn (e.g., IMG_1234)
+    img_match = re.match(r'^IMG_(\d+)$', name_without_ext, re.IGNORECASE)
+    if img_match:
+        return int(img_match.group(1))
+    
+    # DSC pattern: DSC_nnnn (e.g., DSC_5678)
+    dsc_match = re.match(r'^DSC_(\d+)$', name_without_ext, re.IGNORECASE)
+    if dsc_match:
+        return int(dsc_match.group(1))
+    
+    # If no pattern matches, return 0
+    return 0

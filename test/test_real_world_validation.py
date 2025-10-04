@@ -1,8 +1,7 @@
 import pytest
+import subprocess
+import sys
 from pathlib import Path
-from click.testing import CliRunner
-from src.command.find_samples import find_samples
-import settings
 
 
 @pytest.mark.realworld
@@ -15,36 +14,61 @@ class TestRealWorldValidation:
     
     def test_skip_if_no_real_photos(self):
         """Skip if settings.local.py doesn't exist or photo path is invalid"""
-        if not settings.PIC_SOURCE_PATH_FULL.exists():
-            pytest.skip(f"Real photo path doesn't exist: {settings.PIC_SOURCE_PATH_FULL}")
+        project_root = Path(__file__).parent.parent
+        sys.path.insert(0, str(project_root))
         
-        # Count actual image files
-        image_files = list(settings.PIC_SOURCE_PATH_FULL.rglob("*.jpg")) + \
-                     list(settings.PIC_SOURCE_PATH_FULL.rglob("*.jpeg")) + \
-                     list(settings.PIC_SOURCE_PATH_FULL.rglob("*.png"))
-        
-        if len(image_files) < 5:
-            pytest.skip(f"Not enough photos for validation: {len(image_files)} found")
+        try:
+            import settings
+            if not hasattr(settings, 'PIC_SOURCE_PATH_FULL'):
+                pytest.skip("PIC_SOURCE_PATH_FULL not configured in settings.local.py")
+            if not settings.PIC_SOURCE_PATH_FULL.exists():
+                pytest.skip(f"Real photo path doesn't exist: {settings.PIC_SOURCE_PATH_FULL}")
+            
+            # Count actual image files
+            image_files = list(settings.PIC_SOURCE_PATH_FULL.rglob("*.jpg")) + \
+                         list(settings.PIC_SOURCE_PATH_FULL.rglob("*.jpeg")) + \
+                         list(settings.PIC_SOURCE_PATH_FULL.rglob("*.png"))
+            
+            if len(image_files) < 5:
+                pytest.skip(f"Not enough photos for validation: {len(image_files)} found")
+        finally:
+            if str(project_root) in sys.path:
+                sys.path.remove(str(project_root))
     
     def test_real_camera_detection(self):
         """Test that real cameras are properly detected"""
-        if not settings.PIC_SOURCE_PATH_FULL.exists():
-            pytest.skip("No real photos configured")
+        project_root = Path(__file__).parent.parent
+        sys.path.insert(0, str(project_root))
         
-        runner = CliRunner()
-        result = runner.invoke(find_samples, ['-s', str(settings.PIC_SOURCE_PATH_FULL), '--show-camera-diversity'])
+        try:
+            import settings
+            if not settings.PIC_SOURCE_PATH_FULL.exists():
+                pytest.skip("No real photos configured")
+            photo_path = str(settings.PIC_SOURCE_PATH_FULL)
+        finally:
+            if str(project_root) in sys.path:
+                sys.path.remove(str(project_root))
         
-        assert result.exit_code == 0
+        # Run find-samples with camera diversity
+        result = subprocess.run(
+            [sys.executable, "manage.py", "find-samples", "-s", photo_path, "--show-camera-diversity"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        assert result.returncode == 0, f"Command failed: {result.stderr}"
         
         # Should find at least one camera
-        assert "different camera(s):" in result.output
+        assert "different camera(s):" in result.stdout
         
         # Common camera manufacturers that might appear
         expected_brands = ['Canon', 'Nikon', 'Sony', 'Apple', 'Samsung', 'Fujifilm', 'Olympus', 'Panasonic']
         found_brands = []
         
         for brand in expected_brands:
-            if brand in result.output:
+            if brand in result.stdout:
                 found_brands.append(brand)
         
         print(f"\nDetected camera brands: {found_brands}")
@@ -54,39 +78,69 @@ class TestRealWorldValidation:
     
     def test_real_burst_detection(self):
         """Test burst detection on real photo sequences"""
-        if not settings.PIC_SOURCE_PATH_FULL.exists():
-            pytest.skip("No real photos configured")
+        project_root = Path(__file__).parent.parent
+        sys.path.insert(0, str(project_root))
         
-        runner = CliRunner()
-        result = runner.invoke(find_samples, ['-s', str(settings.PIC_SOURCE_PATH_FULL), '--show-bursts'])
+        try:
+            import settings
+            if not settings.PIC_SOURCE_PATH_FULL.exists():
+                pytest.skip("No real photos configured")
+            photo_path = str(settings.PIC_SOURCE_PATH_FULL)
+        finally:
+            if str(project_root) in sys.path:
+                sys.path.remove(str(project_root))
         
-        assert result.exit_code == 0
+        # Run find-samples with burst detection
+        result = subprocess.run(
+            [sys.executable, "manage.py", "find-samples", "-s", photo_path, "--show-bursts"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
         
-        if "Found 0 burst sequence(s)" in result.output:
+        assert result.returncode == 0, f"Command failed: {result.stderr}"
+        
+        if "Found 0 burst sequence(s)" in result.stdout:
             print("\nNo burst sequences detected in real photos")
             # This might be expected if the collection doesn't have bursts
         else:
             print(f"\nBurst detection results from real photos:")
-            output_lines = result.output.split('\n')
+            output_lines = result.stdout.split('\n')
             for line in output_lines:
                 if 'burst sequence' in line.lower() or 'photos):' in line:
                     print(f"  {line}")
     
     def test_real_timestamp_conflicts(self):
         """Test timestamp conflict detection with real multi-photographer scenarios"""
-        if not settings.PIC_SOURCE_PATH_FULL.exists():
-            pytest.skip("No real photos configured")
+        project_root = Path(__file__).parent.parent
+        sys.path.insert(0, str(project_root))
         
-        runner = CliRunner()
-        result = runner.invoke(find_samples, ['-s', str(settings.PIC_SOURCE_PATH_FULL), '--show-conflicts'])
+        try:
+            import settings
+            if not settings.PIC_SOURCE_PATH_FULL.exists():
+                pytest.skip("No real photos configured")
+            photo_path = str(settings.PIC_SOURCE_PATH_FULL)
+        finally:
+            if str(project_root) in sys.path:
+                sys.path.remove(str(project_root))
         
-        assert result.exit_code == 0
+        # Run find-samples with conflict detection
+        result = subprocess.run(
+            [sys.executable, "manage.py", "find-samples", "-s", photo_path, "--show-conflicts"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
         
-        if "Found 0 timestamp conflict(s)" in result.output:
+        assert result.returncode == 0, f"Command failed: {result.stderr}"
+        
+        if "Found 0 timestamp conflict(s)" in result.stdout:
             print("\nNo timestamp conflicts detected in real photos")
         else:
             print(f"\nTimestamp conflict results from real photos:")
-            output_lines = result.output.split('\n')
+            output_lines = result.stdout.split('\n')
             in_conflict_section = False
             for line in output_lines:
                 if 'timestamp conflict' in line.lower():
@@ -99,19 +153,34 @@ class TestRealWorldValidation:
     
     def test_real_missing_exif_detection(self):
         """Test missing EXIF detection on real photos"""
-        if not settings.PIC_SOURCE_PATH_FULL.exists():
-            pytest.skip("No real photos configured")
+        project_root = Path(__file__).parent.parent
+        sys.path.insert(0, str(project_root))
         
-        runner = CliRunner()
-        result = runner.invoke(find_samples, ['-s', str(settings.PIC_SOURCE_PATH_FULL), '--show-missing-exif'])
+        try:
+            import settings
+            if not settings.PIC_SOURCE_PATH_FULL.exists():
+                pytest.skip("No real photos configured")
+            photo_path = str(settings.PIC_SOURCE_PATH_FULL)
+        finally:
+            if str(project_root) in sys.path:
+                sys.path.remove(str(project_root))
         
-        assert result.exit_code == 0
+        # Run find-samples with missing EXIF detection
+        result = subprocess.run(
+            [sys.executable, "manage.py", "find-samples", "-s", photo_path, "--show-missing-exif"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
         
-        if "All photos have EXIF timestamps" in result.output:
+        assert result.returncode == 0, f"Command failed: {result.stderr}"
+        
+        if "All photos have EXIF timestamps" in result.stdout:
             print("\nAll real photos have EXIF timestamps")
         else:
             # Extract count of photos without EXIF
-            output_lines = result.output.split('\n')
+            output_lines = result.stdout.split('\n')
             for line in output_lines:
                 if "photo(s) without EXIF timestamps:" in line:
                     print(f"\n{line}")
@@ -119,16 +188,31 @@ class TestRealWorldValidation:
     
     def test_real_photo_chronological_sorting(self):
         """Test that real photos are sorted chronologically"""
-        if not settings.PIC_SOURCE_PATH_FULL.exists():
-            pytest.skip("No real photos configured")
+        project_root = Path(__file__).parent.parent
+        sys.path.insert(0, str(project_root))
         
-        runner = CliRunner()
-        result = runner.invoke(find_samples, ['-s', str(settings.PIC_SOURCE_PATH_FULL)])
+        try:
+            import settings
+            if not settings.PIC_SOURCE_PATH_FULL.exists():
+                pytest.skip("No real photos configured")
+            photo_path = str(settings.PIC_SOURCE_PATH_FULL)
+        finally:
+            if str(project_root) in sys.path:
+                sys.path.remove(str(project_root))
         
-        assert result.exit_code == 0
+        # Run basic find-samples to get all photos
+        result = subprocess.run(
+            [sys.executable, "manage.py", "find-samples", "-s", photo_path],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        assert result.returncode == 0, f"Command failed: {result.stderr}"
         
         # Extract photo count
-        output_lines = result.output.strip().split('\n')
+        output_lines = result.stdout.strip().split('\n')
         found_line = next(line for line in output_lines if "Found" in line and "photos" in line)
         photo_count = int(found_line.split()[1])
         
@@ -152,19 +236,34 @@ class TestRealWorldValidation:
     
     def test_iphone_photo_detection(self):
         """Test detection of iPhone/smartphone photos if present"""
-        if not settings.PIC_SOURCE_PATH_FULL.exists():
-            pytest.skip("No real photos configured")
+        project_root = Path(__file__).parent.parent
+        sys.path.insert(0, str(project_root))
         
-        runner = CliRunner()
-        result = runner.invoke(find_samples, ['-s', str(settings.PIC_SOURCE_PATH_FULL), '--show-camera-diversity'])
+        try:
+            import settings
+            if not settings.PIC_SOURCE_PATH_FULL.exists():
+                pytest.skip("No real photos configured")
+            photo_path = str(settings.PIC_SOURCE_PATH_FULL)
+        finally:
+            if str(project_root) in sys.path:
+                sys.path.remove(str(project_root))
         
-        assert result.exit_code == 0
+        # Run find-samples with camera diversity
+        result = subprocess.run(
+            [sys.executable, "manage.py", "find-samples", "-s", photo_path, "--show-camera-diversity"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        assert result.returncode == 0, f"Command failed: {result.stderr}"
         
         smartphone_indicators = ['iPhone', 'Apple', 'Samsung', 'Pixel', 'OnePlus', 'Huawei']
         found_smartphones = []
         
         for indicator in smartphone_indicators:
-            if indicator in result.output:
+            if indicator in result.stdout:
                 found_smartphones.append(indicator)
         
         if found_smartphones:
@@ -174,26 +273,38 @@ class TestRealWorldValidation:
     
     def test_validate_edge_cases_in_real_data(self):
         """Validate that edge cases are properly handled in real data"""
-        if not settings.PIC_SOURCE_PATH_FULL.exists():
-            pytest.skip("No real photos configured")
+        project_root = Path(__file__).parent.parent
+        sys.path.insert(0, str(project_root))
         
-        runner = CliRunner()
+        try:
+            import settings
+            if not settings.PIC_SOURCE_PATH_FULL.exists():
+                pytest.skip("No real photos configured")
+            photo_path = str(settings.PIC_SOURCE_PATH_FULL)
+        finally:
+            if str(project_root) in sys.path:
+                sys.path.remove(str(project_root))
         
         # Run all filters to see what edge cases exist in real data
-        result = runner.invoke(find_samples, [
-            '-s', str(settings.PIC_SOURCE_PATH_FULL),
-            '--show-bursts',
-            '--show-conflicts', 
-            '--show-missing-exif',
-            '--show-camera-diversity'
-        ])
+        result = subprocess.run(
+            [sys.executable, "manage.py", "find-samples",
+             "-s", photo_path,
+             "--show-bursts",
+             "--show-conflicts", 
+             "--show-missing-exif",
+             "--show-camera-diversity"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
         
-        assert result.exit_code == 0
+        assert result.returncode == 0, f"Command failed: {result.stderr}"
         
         print(f"\nReal-world edge case summary:")
         
         # Parse results for different edge cases
-        output = result.output
+        output = result.stdout
         
         # Count burst sequences
         if "burst sequence(s):" in output:

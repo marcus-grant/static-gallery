@@ -1,5 +1,19 @@
 # Galleria Changelog
 
+## 2025-10-04
+
+- Created manage.py entry point for Django-style command interface
+- Added TDD tests for manage.py shell commands with subprocess execution
+- Implemented extract_filename_sequence() for numeric camera filename parsing
+- Enhanced chronological sorting to use numeric sequence instead of alphabetical
+- Fixed multi-camera "three cycles" issue with proper timestamp+sequence sorting
+- Added comprehensive real-world validation tests with realworld pytest marker
+- Analyzed wedding photo collection: discovered dual Canon EOS R5 setup (4F6A/5W9A prefixes)
+- Added performance testing infrastructure for large photo collections
+- Updated E2E tests to test actual shell interface instead of Click commands directly
+- Documented multi-camera findings and TEST_OUTPUT_PATH requirement in TODO.md
+- Completed EXIF Service Module - E2E Testing & Real-world Validation phase
+
 ## 2025-10-03
 
 - Completed E2E testing for EXIF service integration
