@@ -269,7 +269,6 @@ pytest>=7.0.0
 
 - [x] Command infrastructure with manage.py entry point
 - [x] find-samples command implemented with all edge case detection
-- [ ] list-samples command implemented  
 - [x] Settings hierarchy with TEST_OUTPUT_PATH for separating test results from production paths
 
 #### Settings Architecture
@@ -296,7 +295,6 @@ TEST_OUTPUT_PATH = Path(os.getenv('GALLERIA_TEST_OUTPUT_PATH',
 
 - manage.py - Click-based command entry point
 - src/command/find_samples.py - Scan photos, detect edge cases, extract EXIF, save to JSON
-- src/command/list_samples.py - Display saved metadata from JSON
 
 ##### find-samples Command Requirements
 **Purpose**: Identify sample photos for testing the processing pipeline
@@ -726,6 +724,17 @@ tests/
 
 **Decision Rationale:**
 UUIDv7 + Base32 chosen for easier integration of multiple EXIF fields (timestamp, camera, GPS, filename) while maintaining k-sortability and reasonable length.
+
+### Developer Tools (Deprioritized)
+
+#### list-samples Command
+
+**Status**: Deprioritized - find-samples already provides needed functionality
+
+Originally planned to display saved sample metadata from JSON cache. However, find-samples 
+already shows all necessary information when run, and the JSON output is primarily useful
+for debugging. The command structure and edge case detection from find-samples proved more
+valuable as building blocks for chronological UUID generation than as a standalone tool.
 
 ---
 
