@@ -141,56 +141,67 @@ Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
 
 ## Development Tasks & Specifications
 
-### Data Models & Database Architecture
+### Data Models & JSON Persistence
 
-**Deliverable**: SQLAlchemy 2.0 models with SQLite backend for photo metadata
+**Deliverable**: Python dataclass models with JSON serialization for photo metadata
 
 #### Development Approach
 
-1. **TDD develop model classes** - Photo, EXIF data models
-2. **Database setup with async** - SQLAlchemy 2.0 + aiosqlite
-3. **Migration system** - Alembic for schema changes
-4. **Integration testing** - Async database operations
+1. **TDD develop dataclass models** - Photo, EXIF, Camera data models
+2. **JSON serialization/deserialization helpers**
+3. **Cache management for photo metadata**
+4. **Integration with existing exif service**
 
 #### Acceptance Criteria
 
-- [ ] `src/models/photo.py` - Photo model with SQLAlchemy 2.0
-- [ ] `src/models/database.py` - Database connection and session management
-- [ ] Async database operations with aiosqlite
-- [ ] Alembic migration setup for schema management
+- [ ] `src/models/photo.py` - Dataclass models for photo metadata
+- [ ] JSON serialization with dataclasses.asdict()
+- [ ] Deserialization from JSON to dataclass instances
 - [ ] Unit tests for model operations
-- [ ] JSON serialization for API responses
+- [ ] Integration with find-samples command to save JSON
 
 #### Required Models
 
 ```python
-# src/models/photo.py
-class Photo(Base):
-    """Photo model with EXIF and filesystem metadata"""
-    id: Mapped[int] = mapped_column(primary_key=True)
-    path: Mapped[str] = mapped_column(String(512), unique=True)
-    filename: Mapped[str] = mapped_column(String(255))
-    file_size: Mapped[int]
-    created_at: Mapped[datetime]
-    
-class ExifData(Base):
-    """EXIF metadata extracted from photos"""
-    id: Mapped[int] = mapped_column(primary_key=True)
-    photo_id: Mapped[int] = mapped_column(ForeignKey("photo.id"))
-    camera_make: Mapped[Optional[str]]
-    camera_model: Mapped[Optional[str]]
-    timestamp: Mapped[Optional[datetime]]
-    gps_latitude: Mapped[Optional[float]]
-    gps_longitude: Mapped[Optional[float]]
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Optional, List, Dict
+
+@dataclass
+class CameraInfo:
+    """Camera make and model information"""
+    make: Optional[str]
+    model: Optional[str]
+
+@dataclass
+class ExifData:
+    """EXIF metadata from photo"""
+    timestamp: Optional[datetime]
+    subsecond: Optional[int]
+    gps_latitude: Optional[float]
+    gps_longitude: Optional[float]
+    raw_data: Dict[str, str]  # Full EXIF dict
+
+@dataclass
+class ProcessedPhoto:
+    """Complete photo metadata record"""
+    path: Path
+    filename: str
+    file_size: int
+    camera: CameraInfo
+    exif: ExifData
+    edge_cases: List[str]
+    uuid: Optional[str] = None
 ```
 
-#### Database Features
+#### JSON Persistence Features
 
-- **SQLite for development/production** - Single file, no server required
-- **Async operations** - Non-blocking database calls
-- **JSON API serialization** - Models convert to dict for FastAPI responses
-- **Query optimization** - Efficient edge case detection with SQL
-- **Migration support** - Schema evolution with Alembic
+- **Simple JSON files** - Easy to version control and inspect
+- **Dataclass serialization** - Built-in Python support
+- **Cache management** - Store processed metadata in CACHE_DIR
+- **Fast lookups** - Load entire collection into memory
+- **Future migration path** - Easy to convert to SQLite if needed
 
 ### Project Bootstrap & Sample Data
 
@@ -213,7 +224,7 @@ galleria/
 |-- .gitignore
 |-- src/
 |   |-- command/       (Click commands - view layer)
-|   |-- model/         (SQLAlchemy 2.0 data models with SQLite backing)
+|   |-- models/        (Python dataclass models for photo metadata)
 |   |-- services/      (Business logic)
 |   `-- utils/         (Utility modules)
 |-- templates/         (Jinja2 templates - .j2.html extensions)
@@ -245,11 +256,7 @@ Pillow>=10.0.0
 exifread>=3.0.0
 python-dotenv>=1.0.0
 boto3>=1.26.0  # for S3-compatible Hetzner API
-sqlalchemy>=2.0.0  # SQLAlchemy 2.0 with async support
-aiosqlite>=0.17.0  # Async SQLite driver
-alembic>=1.13.0  # Database migrations
 pytest>=7.0.0
-pytest-asyncio>=0.21.0  # For async tests
 ```
 
 ---
@@ -263,7 +270,7 @@ pytest-asyncio>=0.21.0  # For async tests
 - [x] Command infrastructure with manage.py entry point
 - [x] find-samples command implemented with all edge case detection
 - [ ] list-samples command implemented  
-- [ ] Settings hierarchy with TEST_OUTPUT_PATH for separating test results from production paths
+- [x] Settings hierarchy with TEST_OUTPUT_PATH for separating test results from production paths
 
 #### Settings Architecture
 
@@ -468,7 +475,7 @@ def batch_upload_photos(photo_metadata, bucket) -> dict:
 
 - [ ] Custom Jinja2 templates with Tailwind CSS + AlpineJS
 - [ ] Gallery page template with photo grid
-- [ ] JSON API endpoints from SQLite data for AlpineJS frontend
+- [ ] JSON API endpoints from cached photo data for AlpineJS frontend
 - [ ] Basic navbar and site structure
 - [ ] SEO configuration with noindex
 - [ ] Mobile-responsive design
@@ -503,8 +510,8 @@ TEMPLATES = {
     'gallery.j2.html': 'gallery.html',
 }
 
-# Generate JSON API responses from SQLite database
-PHOTO_METADATA_SOURCE = 'sqlite'  # Photo data served from database
+# Generate JSON API responses from cached photo metadata
+PHOTO_METADATA_SOURCE = 'json'  # Photo data served from JSON cache
 STATIC_PATHS = ['css', 'js', 'img']
 ```
 
