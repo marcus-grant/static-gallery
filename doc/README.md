@@ -26,6 +26,10 @@ working, acceptable user experience deployed quickly.
 - **[Changelog](./CHANGELOG.md)** - Record of completed features and major 
   changes
 
+### Services & Implementation
+- **[UUID Service](./services/uuid_service.md)** - Photo UUID generation service 
+  with RFC 9562 UUIDv7, Base32 encoding, and chronological ordering
+
 ### Utilities & Implementation Notes
 - **[UUIDv7 Implementation](./util/UUIDv7.md)** - RFC 9562 compliance, Python 
   standard library status, and implementation strategy for chronological photo IDs
@@ -45,7 +49,7 @@ working, acceptable user experience deployed quickly.
 ### Technology Stack
 - **Backend**: Python 3.12, Pelican static generator
 - **Frontend**: AlpineJS + Tailwind CSS (CDN, no build step)
-- **Photo Processing**: Pillow, exifread, UUIDv7 naming
+- **Photo Processing**: Pillow, exifread, RFC 9562 UUIDv7 naming
 - **Storage**: Hetzner object storage with BunnyCDN
 - **Testing**: pytest with pyfakefs for filesystem mocking
 

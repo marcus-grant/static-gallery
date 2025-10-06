@@ -10,6 +10,7 @@ import json
 @dataclass
 class CameraInfo:
     """Camera make and model information."""
+
     make: Optional[str]
     model: Optional[str]
 
@@ -17,6 +18,7 @@ class CameraInfo:
 @dataclass
 class ExifData:
     """EXIF metadata from photo."""
+
     timestamp: Optional[datetime]
     subsecond: Optional[int]
     gps_latitude: Optional[float]
@@ -27,6 +29,7 @@ class ExifData:
 @dataclass
 class ProcessedPhoto:
     """Complete photo metadata record."""
+
     path: Path
     filename: str
     file_size: int
@@ -42,22 +45,19 @@ def photo_from_exif_service(
     camera_info: dict,
     exif_data: dict,
     subsecond: Optional[int],
-    edge_cases: List[str]
+    edge_cases: List[str],
 ) -> ProcessedPhoto:
     """Create ProcessedPhoto from exif service output."""
-    camera = CameraInfo(
-        make=camera_info.get("make"),
-        model=camera_info.get("model")
-    )
-    
+    camera = CameraInfo(make=camera_info.get("make"), model=camera_info.get("model"))
+
     exif = ExifData(
         timestamp=timestamp,
         subsecond=subsecond,
         gps_latitude=None,  # TODO: Extract GPS from exif_data
         gps_longitude=None,
-        raw_data=exif_data
+        raw_data=exif_data,
     )
-    
+
     return ProcessedPhoto(
         path=path,
         filename=path.name,
@@ -65,7 +65,7 @@ def photo_from_exif_service(
         camera=camera,
         exif=exif,
         edge_cases=edge_cases,
-        uuid=None
+        uuid=None,
     )
 
 
@@ -84,15 +84,15 @@ def photo_from_json(data: dict) -> ProcessedPhoto:
     """Create ProcessedPhoto from JSON dict."""
     # Convert path string back to Path
     data["path"] = Path(data["path"])
-    
+
     # Convert timestamp string back to datetime
     if data["exif"]["timestamp"]:
         data["exif"]["timestamp"] = datetime.fromisoformat(data["exif"]["timestamp"])
-    
+
     # Create nested dataclasses
     camera = CameraInfo(**data["camera"])
     exif = ExifData(**data["exif"])
-    
+
     return ProcessedPhoto(
         path=data["path"],
         filename=data["filename"],
@@ -100,5 +100,6 @@ def photo_from_json(data: dict) -> ProcessedPhoto:
         camera=camera,
         exif=exif,
         edge_cases=data["edge_cases"],
-        uuid=data.get("uuid")
+        uuid=data.get("uuid"),
     )
+
