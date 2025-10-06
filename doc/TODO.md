@@ -353,33 +353,59 @@ TEST_OUTPUT_PATH = Path(os.getenv('GALLERIA_TEST_OUTPUT_PATH',
 
 #### Acceptance Criteria
 
-- [ ] Extract EXIF timestamp, GPS, camera model from photos
-- [ ] Generate UUIDv7 with EXIF timestamp as time component
-- [ ] Encode UUIDs as Base32 for shorter filenames
-- [ ] Handle burst mode with subsecond or filename sequence
+- [x] Extract EXIF timestamp, GPS, camera model from photos (completed in exif service)
+- [ ] Implement RFC 9562 compliant UUIDv7 generator
+- [ ] Generate UUIDv7 with EXIF timestamp as millisecond time component
+- [ ] Encode UUIDs as Base32 for shorter filenames (26 chars)
+- [ ] Handle burst mode with monotonic counter for same millisecond
 - [ ] Maintain k-sortability (chronological ordering)
+- [ ] Thread-safe implementation with global state management
+- [ ] Integrate EXIF data (camera/filename) into random portions
 - [ ] All core logic unit tests passing
+
+#### Implementation Details
+
+**UUIDv7 Utility Module**: `src/utils/uuidv7.py`
+- Copy RFC 9562 compliant implementation from CPython
+- Add thread safety with threading.Lock
+- Include PSF license attribution
+- Document migration path for Python 3.14+
 
 #### Core Functions Required
 
 ```python
-def extract_exif_data(photo_path) -> dict:
-    """Extract timestamp, GPS, camera info from photo"""
+# In src/utils/uuidv7.py
+def uuid7(timestamp_ms: Optional[int] = None) -> uuid.UUID:
+    """Thread-safe RFC 9562 UUIDv7 generator"""
+
+# In src/services/uuid_service.py    
+def generate_photo_uuid(timestamp: Optional[datetime], 
+                       camera_info: Dict, 
+                       filename: str) -> str:
+    """Generate Base32-encoded UUIDv7 from photo metadata"""
     
-def generate_uuid_from_exif(exif_data, original_filename) -> str:
-    """Create UUIDv7 from EXIF data, encode as Base32"""
+def assign_uuid_to_photo(photo: ProcessedPhoto) -> ProcessedPhoto:
+    """Assign UUID to photo model"""
     
-def handle_burst_sequence(photo_list) -> list:
-    """Ensure proper ordering for burst mode photos"""
+def assign_uuids_to_photos(photos: List[ProcessedPhoto]) -> List[ProcessedPhoto]:
+    """Batch assign UUIDs maintaining chronological order"""
 ```
 
 #### Test Coverage Required
 
-- EXIF extraction from various camera formats
-- UUID generation produces k-sortable results
-- Burst mode sequence preservation
-- Collision handling for identical timestamps
-- Base32 encoding/decoding correctness
+- RFC 9562 compliance (millisecond timestamps, field layout)
+- Chronological ordering (k-sortable) verification
+- Burst mode handling (multiple photos same millisecond)
+- Thread safety under concurrent generation
+- EXIF datetime to milliseconds conversion
+- Camera/filename incorporation for uniqueness
+- Base32 encoding/decoding round trips
+- Global state management and counter overflow
+- Integration with ProcessedPhoto models
+
+#### Dependencies to Remove
+
+- `uuid7` package (non-compliant with RFC 9562)
 
 ---
 

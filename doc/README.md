@@ -26,6 +26,10 @@ working, acceptable user experience deployed quickly.
 - **[Changelog](./CHANGELOG.md)** - Record of completed features and major 
   changes
 
+### Utilities & Implementation Notes
+- **[UUIDv7 Implementation](./util/UUIDv7.md)** - RFC 9562 compliance, Python 
+  standard library status, and implementation strategy for chronological photo IDs
+
 ### Getting Started
 - **[Main README](../README.md)** - Project overview, setup instructions, and 
   basic usage
