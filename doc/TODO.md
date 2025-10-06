@@ -141,6 +141,31 @@ Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
 
 ## Development Tasks & Specifications
 
+### Fix Failing Settings Test
+
+**Deliverable**: Resolve test failure in settings hierarchy
+
+#### Issue Description
+
+Test `test_settings.py::TestSettingsHierarchy::test_local_settings_override_defaults` 
+is failing with assertion error:
+
+```
+AssertionError: assert '/home/marcus...galleria/pics' == '/local/pics'
+```
+
+The test expects local settings to override default PIC_SOURCE_PATH_FULL but 
+the override is not working correctly.
+
+#### Acceptance Criteria
+
+- [ ] Investigate settings hierarchy for PIC_SOURCE_PATH_FULL override
+- [ ] Fix local settings override mechanism  
+- [ ] Ensure test passes without breaking existing functionality
+- [ ] Verify other settings tests remain passing
+
+---
+
 ### Data Models & JSON Persistence
 
 **Deliverable**: Python dataclass models with JSON serialization for photo metadata
@@ -354,18 +379,18 @@ TEST_OUTPUT_PATH = Path(os.getenv('GALLERIA_TEST_OUTPUT_PATH',
 #### Acceptance Criteria
 
 - [x] Extract EXIF timestamp, GPS, camera model from photos (completed in exif service)
-- [ ] Implement RFC 9562 compliant UUIDv7 generator
-- [ ] Generate UUIDv7 with EXIF timestamp as millisecond time component
-- [ ] Encode UUIDs as Base32 for shorter filenames (26 chars)
-- [ ] Handle burst mode with monotonic counter for same millisecond
-- [ ] Maintain k-sortability (chronological ordering)
-- [ ] Thread-safe implementation with global state management
+- [x] Implement RFC 9562 compliant UUIDv7 generator
+- [x] Generate UUIDv7 with EXIF timestamp as millisecond time component
+- [x] Encode UUIDs as Base32 for shorter filenames (26 chars)
+- [x] Handle burst mode with monotonic counter for same millisecond
+- [x] Maintain k-sortability (chronological ordering)
+- [x] Thread-safe implementation with global state management
 - [ ] Integrate EXIF data (camera/filename) into random portions
-- [ ] All core logic unit tests passing
+- [x] All core logic unit tests passing
 
 #### Implementation Details
 
-**UUIDv7 Utility Module**: `src/utils/uuidv7.py`
+**UUIDv7 Utility Module**: `src/util/uuidv7.py`
 - Copy RFC 9562 compliant implementation from CPython
 - Add thread safety with threading.Lock
 - Include PSF license attribution
@@ -374,7 +399,7 @@ TEST_OUTPUT_PATH = Path(os.getenv('GALLERIA_TEST_OUTPUT_PATH',
 #### Core Functions Required
 
 ```python
-# In src/utils/uuidv7.py
+# In src/util/uuidv7.py
 def uuid7(timestamp_ms: Optional[int] = None) -> uuid.UUID:
     """Thread-safe RFC 9562 UUIDv7 generator"""
 
@@ -393,19 +418,19 @@ def assign_uuids_to_photos(photos: List[ProcessedPhoto]) -> List[ProcessedPhoto]
 
 #### Test Coverage Required
 
-- RFC 9562 compliance (millisecond timestamps, field layout)
-- Chronological ordering (k-sortable) verification
-- Burst mode handling (multiple photos same millisecond)
-- Thread safety under concurrent generation
-- EXIF datetime to milliseconds conversion
-- Camera/filename incorporation for uniqueness
-- Base32 encoding/decoding round trips
-- Global state management and counter overflow
-- Integration with ProcessedPhoto models
+- [x] RFC 9562 compliance (millisecond timestamps, field layout)
+- [x] Chronological ordering (k-sortable) verification
+- [x] Burst mode handling (multiple photos same millisecond)
+- [x] Thread safety under concurrent generation
+- [x] EXIF datetime to milliseconds conversion
+- [ ] Camera/filename incorporation for uniqueness
+- [x] Base32 encoding/decoding round trips
+- [x] Global state management and counter overflow
+- [x] Integration with ProcessedPhoto models
 
 #### Dependencies to Remove
 
-- `uuid7` package (non-compliant with RFC 9562)
+- [x] `uuid7` package (non-compliant with RFC 9562)
 
 ---
 
