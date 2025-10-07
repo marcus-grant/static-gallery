@@ -1,5 +1,11 @@
 # Galleria Changelog
 
+## 2025-10-07
+
+- Fixed failing settings test for local settings override
+- Test now correctly expects relative path override from local settings
+- Resolved test_local_settings_override_defaults assertion error
+
 ## 2025-10-04
 
 - Created manage.py entry point for Django-style command interface

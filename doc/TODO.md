@@ -141,30 +141,6 @@ Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
 
 ## Development Tasks & Specifications
 
-### Fix Failing Settings Test
-
-**Deliverable**: Resolve test failure in settings hierarchy
-
-#### Issue Description
-
-Test `test_settings.py::TestSettingsHierarchy::test_local_settings_override_defaults` 
-is failing with assertion error:
-
-```
-AssertionError: assert '/home/marcus...galleria/pics' == '/local/pics'
-```
-
-The test expects local settings to override default PIC_SOURCE_PATH_FULL but 
-the override is not working correctly.
-
-#### Acceptance Criteria
-
-- [ ] Investigate settings hierarchy for PIC_SOURCE_PATH_FULL override
-- [ ] Fix local settings override mechanism  
-- [ ] Ensure test passes without breaking existing functionality
-- [ ] Verify other settings tests remain passing
-
----
 
 ### Data Models & JSON Persistence
 
