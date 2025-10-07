@@ -53,9 +53,16 @@ class TestSettingsHierarchy:
         with Patcher(modules_to_reload=[]) as patcher:
             fs = patcher.fs
 
-            # Create settings.local.py with partial overrides at the correct path
+            # Create the settings module structure
+            # Get the path where settings.py would be
+            import pathlib
+            settings_path = pathlib.Path(__file__).resolve().parent.parent / "settings.py"
+            base_dir = settings_path.parent
+            
+            # Create settings.local.py in the same directory as settings.py
+            local_settings_path = base_dir / "settings.local.py"
             fs.create_file(
-                "/home/marcus/Projects/web/gallery/settings.local.py",
+                str(local_settings_path),
                 contents=TEST_LOCAL_SETTINGS_CONTENT,
             )
 
