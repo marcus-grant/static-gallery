@@ -1,7 +1,6 @@
 """Shared test fixtures."""
 
 import pytest
-from pathlib import Path
 from PIL import Image
 
 try:

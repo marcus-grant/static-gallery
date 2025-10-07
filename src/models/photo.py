@@ -4,7 +4,6 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict
-import json
 
 
 @dataclass
@@ -36,7 +35,8 @@ class ProcessedPhoto:
     camera: CameraInfo
     exif: ExifData
     edge_cases: List[str]
-    uuid: Optional[str] = None
+    collection: Optional[str] = None
+    generated_filename: Optional[str] = None
 
 
 def photo_from_exif_service(
@@ -65,7 +65,8 @@ def photo_from_exif_service(
         camera=camera,
         exif=exif,
         edge_cases=edge_cases,
-        uuid=None,
+        collection=None,
+        generated_filename=None,
     )
 
 
@@ -100,6 +101,7 @@ def photo_from_json(data: dict) -> ProcessedPhoto:
         camera=camera,
         exif=exif,
         edge_cases=data["edge_cases"],
-        uuid=data.get("uuid"),
+        collection=data.get("collection"),
+        generated_filename=data.get("generated_filename"),
     )
 

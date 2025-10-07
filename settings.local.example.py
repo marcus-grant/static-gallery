@@ -1,7 +1,6 @@
 # Local settings example
 # Copy this file to settings.local.py and customize for your setup
 
-from pathlib import Path
 
 # Override photo source path for your photos
 # PIC_SOURCE_PATH_FULL = Path('/path/to/your/wedding/photos')

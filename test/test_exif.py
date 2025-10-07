@@ -177,7 +177,6 @@ class TestExtractFilenameSequence:
     
     def test_handles_path_object(self):
         """Test handles pathlib.Path objects"""
-        from pathlib import Path
         path = Path("4F6A5096.JPG")
         result = exif.extract_filename_sequence(path)
         assert result == 5096
@@ -318,10 +317,13 @@ class TestSortPhotosChronologically:
         )
         
         # Sort the photos
-        result = exif.sort_photos_chronologically([photo1, photo2, photo3])
+        sorted_photos = exif.sort_photos_chronologically([photo1, photo2, photo3])
         
         # Should be sorted by numeric sequence: 1000, 2000, 9000
-        # Current alphabetical sorting would give: 1000, 2000, 9000 (which happens to be correct)
+        assert sorted_photos[0][0].name == "4F6A1000.JPG"
+        assert sorted_photos[1][0].name == "4F6A2000.JPG" 
+        assert sorted_photos[2][0].name == "4F6A9000.JPG"
+        
         # Let's try a case where it matters
         
         # Create a case where alphabetical != numeric

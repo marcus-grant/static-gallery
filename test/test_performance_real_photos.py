@@ -1,7 +1,6 @@
 import pytest
 import time
 import os
-from pathlib import Path
 from click.testing import CliRunner
 from src.command.find_samples import find_samples
 import settings
@@ -66,7 +65,7 @@ class TestPerformanceRealPhotos:
         found_line = next(line for line in output_lines if "Found" in line and "photos" in line)
         photo_count = int(found_line.split()[1])
         
-        print(f"\nPerformance Results:")
+        print("\nPerformance Results:")
         print(f"Photos processed: {photo_count}")
         print(f"Execution time: {execution_time:.2f} seconds")
         print(f"Time per photo: {execution_time/photo_count*1000:.2f} ms")
@@ -138,7 +137,7 @@ class TestPerformanceRealPhotos:
         execution_time = end_time - start_time
         time_per_photo = execution_time / photo_count * 1000  # ms per photo
         
-        print(f"\nLarge Collection Performance:")
+        print("\nLarge Collection Performance:")
         print(f"Photos: {photo_count}")
         print(f"Total time: {execution_time:.2f}s")
         print(f"Time per photo: {time_per_photo:.2f}ms")

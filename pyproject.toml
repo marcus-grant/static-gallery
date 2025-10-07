@@ -1,34 +1,28 @@
 [project]
 name = "galleria"
 version = "0.1.0"
-description = "Static wedding photo gallery built with Pelican"
+description = "Static web photo gallery generator"
 requires-python = ">=3.12"
 dependencies = [
-    "pelican",
     "pillow",
     "exifread",
     "python-dotenv",
     "boto3",
     "markdown",
-    "uuid7",
     "click",
+    "timezonefinder>=6.0.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest",
     "pytest-cov",
     "pytest-mock",
     "pyfakefs",
     "ruff",
+    "piexif>=1.1.3",
 ]
 
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-
-[dependency-groups]
-dev = [
-    "piexif>=1.1.3",
-]
-

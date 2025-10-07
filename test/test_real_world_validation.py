@@ -105,7 +105,7 @@ class TestRealWorldValidation:
             print("\nNo burst sequences detected in real photos")
             # This might be expected if the collection doesn't have bursts
         else:
-            print(f"\nBurst detection results from real photos:")
+            print("\nBurst detection results from real photos:")
             output_lines = result.stdout.split('\n')
             for line in output_lines:
                 if 'burst sequence' in line.lower() or 'photos):' in line:
@@ -139,7 +139,7 @@ class TestRealWorldValidation:
         if "Found 0 timestamp conflict(s)" in result.stdout:
             print("\nNo timestamp conflicts detected in real photos")
         else:
-            print(f"\nTimestamp conflict results from real photos:")
+            print("\nTimestamp conflict results from real photos:")
             output_lines = result.stdout.split('\n')
             in_conflict_section = False
             for line in output_lines:
@@ -216,7 +216,7 @@ class TestRealWorldValidation:
         found_line = next(line for line in output_lines if "Found" in line and "photos" in line)
         photo_count = int(found_line.split()[1])
         
-        print(f"\nReal photo collection summary:")
+        print("\nReal photo collection summary:")
         print(f"Total photos found: {photo_count}")
         
         # List first few and last few photos to verify chronological sorting
@@ -225,12 +225,12 @@ class TestRealWorldValidation:
         )]
         
         if len(photo_lines) > 0:
-            print(f"First few photos (chronologically):")
+            print("First few photos (chronologically):")
             for i, photo in enumerate(photo_lines[:5]):
                 print(f"  {i+1}. {photo}")
             
             if len(photo_lines) > 10:
-                print(f"Last few photos (chronologically):")
+                print("Last few photos (chronologically):")
                 for i, photo in enumerate(photo_lines[-3:]):
                     print(f"  {len(photo_lines)-2+i}. {photo}")
     
@@ -301,7 +301,7 @@ class TestRealWorldValidation:
         
         assert result.returncode == 0, f"Command failed: {result.stderr}"
         
-        print(f"\nReal-world edge case summary:")
+        print("\nReal-world edge case summary:")
         
         # Parse results for different edge cases
         output = result.stdout

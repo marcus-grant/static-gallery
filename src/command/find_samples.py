@@ -1,11 +1,10 @@
 import click
 import json
 from pathlib import Path
-from datetime import datetime
 
 import settings
 from src.services import fs, exif
-from src.models.photo import ProcessedPhoto, photo_from_exif_service, photo_to_json
+from src.models.photo import photo_from_exif_service, photo_to_json
 
 
 @click.command()

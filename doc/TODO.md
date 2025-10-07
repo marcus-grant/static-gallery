@@ -5,7 +5,7 @@
 A static photo gallery built with a custom Python static site generator,
 using AlpineJS for frontend interactions and
 Tailwind CSS for styling.
-Photos are processed with UUIDv7-based filenames derived from EXIF data and
+Photos are processed with human-readable chronological filenames derived from EXIF data and
 hosted on Hetzner object storage with BunnyCDN for global distribution.
 
 ### Conventions of Project
@@ -38,7 +38,7 @@ Get a working, acceptable user experience deployed quickly.
 ### Photo Processing Workflow
 
 ```txt
-Photographer's Photos -> EXIF Extraction -> UUID Generation ->
+Photographer's Photos -> EXIF Extraction -> Chronological Filename Generation ->
 -> Thumbnail Creation -> Upload to Buckets ->
 -> Custom HTML Generation -> Deploy
 ```
@@ -48,9 +48,9 @@ Photographer's Photos -> EXIF Extraction -> UUID Generation ->
 ```txt
 Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
 /originals/                   /galleria-wedding/              Gallery page with:
-  IMG_001.jpg                   {uuid}.jpg  (full)             - Thumbnail grid
-  IMG_002.jpg                   {uuid}.jpg  (web)              - Infinite scroll
-  ...                           {uuid}.webp (thumb)            - Multi-select downloads
+  IMG_001.jpg                   {filename}.jpg  (full)         - Thumbnail grid
+  IMG_002.jpg                   {filename}.jpg  (web)          - Infinite scroll
+  ...                           {filename}.webp (thumb)        - Multi-select downloads
 ```
 
 ### Storage Strategy
@@ -193,7 +193,8 @@ class ProcessedPhoto:
     camera: CameraInfo
     exif: ExifData
     edge_cases: List[str]
-    uuid: Optional[str] = None
+    collection: Optional[str] = None
+    generated_filename: Optional[str] = None
 ```
 
 #### JSON Persistence Features
@@ -348,65 +349,63 @@ TEST_OUTPUT_PATH = Path(os.getenv('GALLERIA_TEST_OUTPUT_PATH',
 
 ---
 
-### EXIF Processing & UUID Generation
+### Human-Readable Filename Generation
 
-**Deliverable**: Core logic for reading photo metadata and generating UUIDs
+**Deliverable**: ISO 8601 chronological filenames with GPS-based timezones
+
+#### Decision: Switch from UUIDs to Human-Readable Filenames
+
+After implementing UUIDv7, we realized that for a wedding photo gallery:
+- Human-readable timestamps are more valuable than abstract UUIDs
+- Chronological sorting works perfectly with ISO 8601 format
+- GPS coordinates can provide timezone context
+- Much simpler implementation (30 lines vs 100+)
+- Sufficient uniqueness for wedding-scale collections
+
+#### Filename Format
+
+```
+collection-YYYYMMDDTHHmmss.sssZhhmm-camera-seq.jpg
+```
+
+Examples:
+- `wedding-20241005T143045.123Z0400-r5a-001.jpg`
+- `getting-ready-20241005T093045.456Z0400-iph-001.jpg`
+- `reception-20241005T223045.789Z0400-r5b-002.jpg`
 
 #### Acceptance Criteria
 
 - [x] Extract EXIF timestamp, GPS, camera model from photos (completed in exif service)
-- [x] Implement RFC 9562 compliant UUIDv7 generator
-- [x] Generate UUIDv7 with EXIF timestamp as millisecond time component
-- [x] Encode UUIDs as Base32 for shorter filenames (26 chars)
-- [x] Handle burst mode with monotonic counter for same millisecond
-- [x] Maintain k-sortability (chronological ordering)
-- [x] Thread-safe implementation with global state management
-- [ ] Integrate EXIF data (camera/filename) into random portions
-- [x] All core logic unit tests passing
-
-#### Implementation Details
-
-**UUIDv7 Utility Module**: `src/util/uuidv7.py`
-- Copy RFC 9562 compliant implementation from CPython
-- Add thread safety with threading.Lock
-- Include PSF license attribution
-- Document migration path for Python 3.14+
+- [ ] Install timezonefinder for GPS→timezone conversion
+- [ ] Generate ISO 8601 timestamps with timezone offsets
+- [ ] Handle burst mode with sequence numbers
+- [ ] Support any case-insensitive collection names
+- [ ] Use hyphen separators (not underscores)
+- [ ] Maintain chronological ordering
+- [ ] All filename generation tests passing
 
 #### Core Functions Required
 
 ```python
-# In src/util/uuidv7.py
-def uuid7(timestamp_ms: Optional[int] = None) -> uuid.UUID:
-    """Thread-safe RFC 9562 UUIDv7 generator"""
-
-# In src/services/uuid_service.py    
-def generate_photo_uuid(timestamp: Optional[datetime], 
-                       camera_info: Dict, 
-                       filename: str) -> str:
-    """Generate Base32-encoded UUIDv7 from photo metadata"""
+# In src/services/filename_service.py
+def generate_photo_filename(photo: ProcessedPhoto, 
+                          collection: str = "gallery") -> str:
+    """Generate chronological filename from photo metadata"""
     
-def assign_uuid_to_photo(photo: ProcessedPhoto) -> ProcessedPhoto:
-    """Assign UUID to photo model"""
+def get_timezone_from_gps(latitude: float, longitude: float, 
+                         timestamp: datetime) -> str:
+    """Get timezone offset from GPS coordinates and date"""
     
-def assign_uuids_to_photos(photos: List[ProcessedPhoto]) -> List[ProcessedPhoto]:
-    """Batch assign UUIDs maintaining chronological order"""
+def format_iso_timestamp(dt: datetime, timezone_offset: str) -> str:
+    """Format datetime as filename-safe ISO 8601 string"""
+    
+def get_camera_code(camera_info: CameraInfo) -> str:
+    """Extract 3-letter lowercase camera identifier"""
 ```
 
-#### Test Coverage Required
+#### Dependencies Required
 
-- [x] RFC 9562 compliance (millisecond timestamps, field layout)
-- [x] Chronological ordering (k-sortable) verification
-- [x] Burst mode handling (multiple photos same millisecond)
-- [x] Thread safety under concurrent generation
-- [x] EXIF datetime to milliseconds conversion
-- [ ] Camera/filename incorporation for uniqueness
-- [x] Base32 encoding/decoding round trips
-- [x] Global state management and counter overflow
-- [x] Integration with ProcessedPhoto models
-
-#### Dependencies to Remove
-
-- [x] `uuid7` package (non-compliant with RFC 9562)
+- `timezonefinder>=6.0.0` for GPS→timezone conversion
 
 ---
 
@@ -416,17 +415,17 @@ def assign_uuids_to_photos(photos: List[ProcessedPhoto]) -> List[ProcessedPhoto]
 
 #### Acceptance Criteria
 
-- [ ] Rename photos using UUID system
+- [ ] Rename photos using chronological filename system
 - [ ] Generate WebP thumbnails from web-optimized photos
-- [ ] Maintain file associations (full/web/thumb with same UUID)
+- [ ] Maintain file associations (full/web/thumb with same filename)
 - [ ] Handle file operations safely with error handling
 - [ ] Process photos in chronological order
 
 #### Processing Functions Required
 
 ```python
-def rename_photo_with_uuid(original_path, uuid_filename) -> str:
-    """Rename photo file with UUID filename"""
+def rename_photo_with_filename(original_path, chronological_filename) -> str:
+    """Rename photo file with chronological filename"""
     
 def create_thumbnail(web_photo_path, output_path) -> bool:
     """Generate WebP thumbnail from web photo"""
@@ -440,14 +439,14 @@ def process_photo_collection(source_dirs) -> dict:
 ```
 wedding-pics/
 |-- full/
-|   |-- ABC123DEF456GHI789.jpg
-|   `-- DEF456GHI789JKL012.jpg
+|   |-- wedding-20241005T143045.123Z0400-r5a-001.jpg
+|   `-- wedding-20241005T143047.456Z0400-r5b-001.jpg
 |-- web/
-|   |-- ABC123DEF456GHI789.jpg
-|   `-- DEF456GHI789JKL012.jpg
+|   |-- wedding-20241005T143045.123Z0400-r5a-001.jpg
+|   `-- wedding-20241005T143047.456Z0400-r5b-001.jpg
 `-- thumb/
-    |-- ABC123DEF456GHI789.webp
-    `-- DEF456GHI789JKL012.webp
+    |-- wedding-20241005T143045.123Z0400-r5a-001.webp
+    `-- wedding-20241005T143047.456Z0400-r5b-001.webp
 ```
 
 ---
@@ -629,7 +628,7 @@ Purge: Manual trigger capability
 
 ```python
 def main():
-    # 1. Process photos (EXIF -> UUID -> thumbnails)
+    # 1. Process photos (EXIF -> Chronological Filenames -> thumbnails)
     # 2. Upload to Hetzner public bucket
     # 3. Generate JSON metadata for gallery
     # 4. Run custom HTML generation
@@ -666,7 +665,7 @@ def main():
 ```
 tests/
 -> test_exif_processing.py
--> test_uuid_generation.py
+-> test_filename_generation.py
 -> test_file_operations.py
 -> test_hetzner_integration.py
 -> test_static_generation.py
@@ -731,26 +730,28 @@ tests/
 - **CDN optimization**: Advanced BunnyCDN configuration for better global performance
 - **Compression**: Additional image optimization techniques
 
-## TinyID Analysis
+## Filename Format Analysis
 
-### TinyID vs UUIDv7 Comparison
+### UUID vs Human-Readable Comparison
 
-**TinyID Characteristics:**
+**UUIDv7 Approach (Discarded):**
 
-- Shorter IDs (typically 11-14 characters)
-- Timestamp-based with customizable encoding
-- Built-in collision resistance
-- Good for URL-friendly IDs
+- 26 characters (Base32 encoded)
+- Abstract, not human-readable
+- Over-engineered for wedding photo scale
+- Complex implementation (~100+ lines)
+- Designed for distributed systems with billions of IDs
 
-**UUIDv7 + Base32 Approach (Selected):**
+**Human-Readable Timestamps (Selected):**
 
-- 26 characters (vs 36 hex chars with hyphens)
-- Easy incorporation of multiple EXIF data points
-- Standard UUID format with timestamp ordering
-- Better control over data incorporation
+- ~35 characters but human-readable
+- Instant chronological understanding
+- GPS-based timezone context
+- Simple implementation (~30 lines)
+- Perfect for wedding-scale collections
 
 **Decision Rationale:**
-UUIDv7 + Base32 chosen for easier integration of multiple EXIF fields (timestamp, camera, GPS, filename) while maintaining k-sortability and reasonable length.
+Human-readable filenames chosen because they provide immediate temporal context, sort chronologically in any file browser, and are much simpler to implement and debug. The slight length increase is offset by the massive usability improvement.
 
 ### Developer Tools (Deprioritized)
 

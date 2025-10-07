@@ -1,4 +1,3 @@
-import pytest
 import click
 import os
 from pathlib import Path
@@ -92,9 +91,9 @@ class TestFindSamplesCommand:
             fs = patcher.fs
             fs.create_dir("/test_pics")
             # Create fake photos that would be in a burst
-            photo1 = fs.create_file("/test_pics/burst1.jpg")
-            photo2 = fs.create_file("/test_pics/burst2.jpg") 
-            photo3 = fs.create_file("/test_pics/single.jpg")
+            fs.create_file("/test_pics/burst1.jpg")
+            fs.create_file("/test_pics/burst2.jpg") 
+            fs.create_file("/test_pics/single.jpg")
             fs.create_dir("/cache")
             
             # Mock the EXIF service to return burst sequences
@@ -129,8 +128,8 @@ class TestFindSamplesCommand:
             fs = patcher.fs
             fs.create_dir("/test_pics")
             # Create fake photos
-            photo1 = fs.create_file("/test_pics/good.jpg")
-            photo2 = fs.create_file("/test_pics/no_exif.jpg")
+            fs.create_file("/test_pics/good.jpg")
+            fs.create_file("/test_pics/no_exif.jpg")
             fs.create_dir("/cache")
             
             # Mock the EXIF service

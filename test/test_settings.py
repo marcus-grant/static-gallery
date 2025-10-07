@@ -1,11 +1,7 @@
 import os
 import sys
-import pytest
-import importlib
-from pathlib import Path
 from pyfakefs.fake_filesystem_unittest import Patcher
 from unittest.mock import patch
-import settings
 
 
 # Test fixtures

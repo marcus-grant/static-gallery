@@ -1,13 +1,7 @@
 import pytest
-import click
-import os
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
-from pyfakefs.fake_filesystem_unittest import Patcher
 from PIL import Image
 import piexif
-from src.command import find_samples
 from src.command.find_samples import find_samples as find_samples_cmd
 
 

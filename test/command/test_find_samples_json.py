@@ -1,7 +1,6 @@
 """Test find-samples command JSON output functionality."""
 
 import json
-from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
@@ -109,7 +108,7 @@ class TestFindSamplesJSON:
         assert "camera" in photo
         assert "exif" in photo
         assert "edge_cases" in photo
-        assert "uuid" in photo  # Should be None for now
+        assert "collection" in photo  # Should be None for now
         
         # Check summary includes edge case counts
         summary = data["summary"]

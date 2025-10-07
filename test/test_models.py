@@ -5,7 +5,6 @@ from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
-import pytest
 
 
 class TestCameraInfo:
@@ -125,8 +124,7 @@ class TestProcessedPhoto:
             file_size=2048576,
             camera=camera,
             exif=exif,
-            edge_cases=["burst"],
-            uuid=None
+            edge_cases=["burst"]
         )
         
         assert photo.path == Path("/pics/IMG_001.jpg")
@@ -135,10 +133,9 @@ class TestProcessedPhoto:
         assert photo.camera.make == "Canon"
         assert photo.exif.timestamp == datetime(2024, 10, 5, 12, 0, 0)
         assert "burst" in photo.edge_cases
-        assert photo.uuid is None
     
-    def test_processed_photo_with_uuid(self):
-        """Test ProcessedPhoto with UUID field."""
+    def test_processed_photo_with_collection(self):
+        """Test ProcessedPhoto with collection field."""
         from src.models.photo import ProcessedPhoto, CameraInfo, ExifData
         
         camera = CameraInfo(make=None, model=None)
@@ -152,10 +149,10 @@ class TestProcessedPhoto:
             camera=camera,
             exif=exif,
             edge_cases=[],
-            uuid="ABC123DEF456"
+            collection="wedding"
         )
         
-        assert photo.uuid == "ABC123DEF456"
+        assert photo.collection == "wedding"
     
     def test_processed_photo_to_dict(self):
         """Test converting ProcessedPhoto to dict for JSON."""
@@ -176,8 +173,7 @@ class TestProcessedPhoto:
             file_size=3145728,
             camera=camera,
             exif=exif,
-            edge_cases=["missing_exif", "burst"],
-            uuid=None
+            edge_cases=["missing_exif", "burst"]
         )
         
         photo_dict = asdict(photo)
@@ -248,8 +244,7 @@ class TestModelHelpers:
                 gps_longitude=None,
                 raw_data={}
             ),
-            edge_cases=["test"],
-            uuid="TEST123"
+            edge_cases=["test"]
         )
         
         # Convert to JSON
@@ -264,4 +259,3 @@ class TestModelHelpers:
         assert restored_photo.path == Path("/pics/test.jpg")
         assert restored_photo.camera.make == "Test"
         assert restored_photo.exif.timestamp == datetime(2024, 10, 5, 12, 0, 0)
-        assert restored_photo.uuid == "TEST123"
