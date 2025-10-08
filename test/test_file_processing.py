@@ -121,10 +121,33 @@ class TestLinkPhoto:
         first_path = link_photo_with_filename(photo1, output_dir)
         assert first_path.exists()
         
-        # Try to link second photo with same generated filename
-        # This should fail since we can't create duplicate symlinks
+        # Try to link same photo again - should succeed
+        second_path = link_photo_with_filename(photo1, output_dir)
+        assert second_path == first_path
+        
+        # Create a different photo with same filename
+        other_photo = ProcessedPhoto(
+            path=tmp_path / "IMG_002.jpg",  # Different source
+            filename="IMG_002.jpg",
+            file_size=1024,
+            camera=CameraInfo(make="Canon", model="EOS R5"),
+            exif=ExifData(
+                timestamp=datetime(2024, 10, 5, 14, 30, 45),
+                subsecond=123,
+                gps_latitude=None,
+                gps_longitude=None,
+                raw_data={}
+            ),
+            edge_cases=[],
+            generated_filename="wedding-20241005T143045.123Z0400-r5a-001.jpg"  # Same target
+        )
+        
+        # Create the other photo file
+        Image.new('RGB', (100, 100), color='blue').save(other_photo.path)
+        
+        # This should fail - different source, same target name
         with pytest.raises(FileExistsError):
-            link_photo_with_filename(photo1, output_dir)
+            link_photo_with_filename(other_photo, output_dir)
 
 
 class TestCreateThumbnail:

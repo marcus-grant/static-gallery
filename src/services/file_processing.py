@@ -31,6 +31,15 @@ def link_photo_with_filename(photo: ProcessedPhoto, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     new_path = output_dir / photo.generated_filename
     
+    # Check if symlink already exists
+    if new_path.exists():
+        if new_path.is_symlink() and new_path.resolve() == photo.path.absolute():
+            # Same symlink already exists, that's OK
+            return new_path
+        else:
+            # Different file or symlink exists with same name
+            raise FileExistsError(f"File already exists: {new_path}")
+    
     # Create symlink to original file
     new_path.symlink_to(photo.path.absolute())
     
@@ -95,6 +104,9 @@ def process_photo_collection(source_dir: Path, output_dir: Path,
     # Get all image files
     photo_files = fs.ls_full(str(source_dir))
     
+    # Track existing filenames to handle burst sequences
+    existing_filenames = set()
+    
     for photo_path in photo_files:
         try:
             # Extract metadata
@@ -121,8 +133,9 @@ def process_photo_collection(source_dir: Path, output_dir: Path,
             # Generate chronological filename
             photo_data.collection = collection_name
             photo_data.generated_filename = generate_photo_filename(
-                photo_data, collection_name
+                photo_data, collection_name, existing_filenames
             )
+            existing_filenames.add(photo_data.generated_filename)
             
             # Create output directories
             full_output = output_dir / "full"

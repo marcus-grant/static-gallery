@@ -324,3 +324,53 @@ class TestIntegration:
         # filenames[0] should end with "-001.jpg"
         # filenames[1] should end with "-002.jpg" 
         # filenames[2] should end with "-003.jpg"
+
+
+class TestBurstSequenceHandling:
+    """Test burst sequence number generation."""
+    
+    def test_generate_unique_sequence_numbers(self):
+        """Test that burst photos get unique sequence numbers."""
+        from src.services.filename_service import generate_photo_filename
+        
+        # Create photos with same timestamp (burst mode)
+        camera = CameraInfo(make="Canon", model="EOS R5") 
+        timestamp = datetime(2024, 10, 5, 14, 30, 45)
+        exif = ExifData(
+            timestamp=timestamp,
+            subsecond=123,
+            gps_latitude=40.7128,
+            gps_longitude=-74.0060,
+            raw_data={}
+        )
+        
+        # Simulate existing filenames to check against
+        existing_filenames = set()
+        
+        # Generate filenames for burst sequence
+        filenames = []
+        for i in range(3):
+            photo = ProcessedPhoto(
+                path=Path(f"IMG_{i:03d}.jpg"),
+                filename=f"IMG_{i:03d}.jpg",
+                file_size=1024,
+                camera=camera,
+                exif=exif,
+                edge_cases=["burst"]
+            )
+            
+            filename = generate_photo_filename(
+                photo, 
+                "wedding",
+                existing_filenames=existing_filenames
+            )
+            filenames.append(filename)
+            existing_filenames.add(filename)
+        
+        # Check that all filenames are unique
+        assert len(set(filenames)) == 3
+        
+        # Check sequence numbers
+        assert filenames[0].endswith("-001.jpg")
+        assert filenames[1].endswith("-002.jpg") 
+        assert filenames[2].endswith("-003.jpg")

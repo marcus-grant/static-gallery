@@ -7,7 +7,8 @@ from zoneinfo import ZoneInfo
 from src.models.photo import ProcessedPhoto, CameraInfo
 
 
-def generate_photo_filename(photo: ProcessedPhoto, collection: str = "gallery") -> str:
+def generate_photo_filename(photo: ProcessedPhoto, collection: str = "gallery", 
+                          existing_filenames: set = None) -> str:
     """Generate chronological filename from photo metadata.
     
     Format: collection-YYYYMMDDTHHmmss.sssZhhmm-camera-seq.jpg
@@ -16,6 +17,7 @@ def generate_photo_filename(photo: ProcessedPhoto, collection: str = "gallery") 
     Args:
         photo: ProcessedPhoto with EXIF metadata
         collection: Collection name (case-insensitive, converted to lowercase)
+        existing_filenames: Set of existing filenames to avoid duplicates
         
     Returns:
         Generated filename string
@@ -42,13 +44,22 @@ def generate_photo_filename(photo: ProcessedPhoto, collection: str = "gallery") 
     # Get camera code
     camera_code = get_camera_code(photo.camera)
     
-    # For now, use sequence 001 - will be enhanced for burst mode
-    sequence = "001"
-    
     # Get file extension
     extension = photo.path.suffix.lower()
     
-    return f"{collection_name}-{timestamp_str}-{camera_code}-{sequence}{extension}"
+    # Generate sequence number to avoid duplicates
+    sequence = 1
+    if existing_filenames:
+        base_name = f"{collection_name}-{timestamp_str}-{camera_code}"
+        while True:
+            filename = f"{base_name}-{sequence:03d}{extension}"
+            if filename not in existing_filenames:
+                break
+            sequence += 1
+    
+    filename = f"{collection_name}-{timestamp_str}-{camera_code}-{sequence:03d}{extension}"
+    
+    return filename
 
 
 def get_timezone_from_gps(latitude: float, longitude: float, timestamp: datetime) -> str:
