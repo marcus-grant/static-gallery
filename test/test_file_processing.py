@@ -6,6 +6,7 @@ from PIL import Image
 from src.services.file_processing import (
     link_photo_with_filename, 
     create_thumbnail,
+    process_photo_collection,
     THUMBNAIL_SIZE
 )
 from src.models.photo import ProcessedPhoto, CameraInfo, ExifData
@@ -90,3 +91,59 @@ class TestCreateThumbnail:
         with Image.open(thumb_path) as img:
             assert img.format == "WEBP"
             assert max(img.size) <= THUMBNAIL_SIZE
+
+
+class TestProcessPhotoCollection:
+    """Test process_photo_collection function."""
+    
+    def test_process_empty_collection(self, tmp_path):
+        """Test processing empty directory."""
+        source_dir = tmp_path / "source"
+        output_dir = tmp_path / "output"
+        source_dir.mkdir()
+        
+        result = process_photo_collection(
+            source_dir=source_dir,
+            output_dir=output_dir,
+            collection_name="test"
+        )
+        
+        assert result["total_processed"] == 0
+        assert result["errors"] == []
+        assert result["photos"] == []
+    
+    def test_process_single_photo(self, tmp_path):
+        """Test processing a single photo."""
+        # Setup directories
+        source_dir = tmp_path / "source"
+        output_dir = tmp_path / "output"
+        source_dir.mkdir()
+        
+        # Create test photo
+        test_image = Image.new('RGB', (800, 600), color='blue')
+        photo_path = source_dir / "IMG_001.jpg"
+        test_image.save(photo_path)
+        
+        # Process collection
+        result = process_photo_collection(
+            source_dir=source_dir,
+            output_dir=output_dir,
+            collection_name="wedding"
+        )
+        
+        # Check results
+        assert result["total_processed"] == 1
+        assert len(result["photos"]) == 1
+        
+        # Check output structure
+        assert (output_dir / "full").exists()
+        assert (output_dir / "thumb").exists()
+        
+        # Check that files were created
+        full_files = list((output_dir / "full").iterdir())
+        thumb_files = list((output_dir / "thumb").iterdir())
+        
+        assert len(full_files) == 1
+        assert len(thumb_files) == 1
+        assert full_files[0].is_symlink()
+        assert thumb_files[0].suffix == ".webp"
