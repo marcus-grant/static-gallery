@@ -1,5 +1,34 @@
 # Galleria Changelog
 
+## 2025-10-08
+
+### Data Models & JSON Persistence (Completed)
+- Created ProcessedPhoto, CameraInfo, and ExifData dataclass models
+- Implemented JSON serialization/deserialization helpers
+- Added photo_from_exif_service for model creation from EXIF data
+- Integrated models with find-samples command for JSON output
+- Full test coverage for all model operations
+
+### Human-Readable Filename Generation (Completed)
+- Replaced UUID system with human-readable chronological filenames
+- Format: collection-YYYYMMDDTHHmmss.sssZhhmm-camera-seq.jpg
+- Implemented GPS-to-timezone conversion using timezonefinder
+- Added burst sequence number handling for duplicate timestamps
+- Replaced pytz with Python's built-in zoneinfo module
+- Created comprehensive test suite for all filename scenarios
+
+### File Processing Pipeline (Completed)
+- Implemented link_photo_with_filename using symlinks (not copies)
+- Created WebP thumbnail generation with aspect ratio preservation
+- Built process_photo_collection orchestration function
+- Added burst mode sequence number increment logic
+- Comprehensive error handling and idempotent operations
+- Full test coverage including edge cases
+
+### Documentation
+- Created FUTURE.md for post-MVP features
+- Updated symlink behavior to default (copy option deferred)
+
 ## 2025-10-07
 
 - Fixed failing settings test for local settings override
