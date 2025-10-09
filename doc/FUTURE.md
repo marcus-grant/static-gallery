@@ -13,6 +13,13 @@
 - Streaming processing for very large collections
 - Multi-threaded/async uploads for performance
 
+### Async Photo Processing Pipeline
+- Stream photos directly from remote archive storage without full local download
+- Process photos one at a time: download → process → upload to public bucket
+- Parallel processing: download next photo while current photo processes/uploads
+- Memory-efficient handling of 30GB+ collections without local storage requirements
+- Progress tracking and resumable processing for interrupted workflows
+
 ### Additional Processing Features
 - Resume capability for interrupted processing
 - Parallel processing of photos

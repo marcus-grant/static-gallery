@@ -231,43 +231,115 @@ TEST_OUTPUT_PATH = Path(os.getenv('GALLERIA_TEST_OUTPUT_PATH',
 
 
 
-### Hetzner Integration
+### Remote Storage Integration (S3-Compatible)
 
-**Deliverable**: Upload/download functionality for Hetzner object storage
+**Deliverable**: S3-compatible object storage for both archive and production photos
+
+#### Architecture Overview
+
+**Dual-Bucket Strategy**:
+- **Private Archive Bucket**: Store original photos for safe-keeping (authenticated access only)
+- **Public Gallery Bucket**: Store processed photos for public gallery access (via CDN)
 
 #### Acceptance Criteria
 
-- [ ] Authenticate to both private and public Hetzner buckets
-- [ ] Upload processed photos to public bucket
-- [ ] Read original photos from private bucket (if configured)
-- [ ] Handle API errors gracefully
-- [ ] Support batch operations for large photo sets
+- [ ] Generic S3-compatible implementation using boto3 (supports Hetzner, AWS, DigitalOcean, etc.)
+- [ ] Upload original photos to private archive bucket with `upload-originals` command
+- [ ] Preserve original directory structure and filenames in archive
+- [ ] Progress reporting and dry-run option for large collections
+- [ ] Upload processed photos to public gallery bucket
+- [ ] Handle API errors gracefully with retry logic
+- [ ] Support batch operations for 30GB+ photo collections
+- [ ] Documentation for bucket setup with security best practices
 
 #### Configuration Required
 
 ```python
-# Environment variables
-HETZNER_PRIVATE_ACCESS_KEY=
-HETZNER_PRIVATE_SECRET_KEY=
-HETZNER_PRIVATE_BUCKET=
-HETZNER_PUBLIC_ACCESS_KEY=
-HETZNER_PUBLIC_SECRET_KEY=
-HETZNER_PUBLIC_BUCKET=
-HETZNER_ENDPOINT=
+# Private archive bucket (for original photos)
+GALLERIA_S3_ARCHIVE_ENDPOINT = os.getenv('GALLERIA_S3_ARCHIVE_ENDPOINT')
+GALLERIA_S3_ARCHIVE_ACCESS_KEY = os.getenv('GALLERIA_S3_ARCHIVE_ACCESS_KEY')
+GALLERIA_S3_ARCHIVE_SECRET_KEY = os.getenv('GALLERIA_S3_ARCHIVE_SECRET_KEY')
+GALLERIA_S3_ARCHIVE_BUCKET = os.getenv('GALLERIA_S3_ARCHIVE_BUCKET', 'galleria-originals-private')
+GALLERIA_S3_ARCHIVE_REGION = os.getenv('GALLERIA_S3_ARCHIVE_REGION', 'us-east-1')
+
+# Public gallery bucket (for processed photos)  
+GALLERIA_S3_PUBLIC_ENDPOINT = os.getenv('GALLERIA_S3_PUBLIC_ENDPOINT')
+GALLERIA_S3_PUBLIC_ACCESS_KEY = os.getenv('GALLERIA_S3_PUBLIC_ACCESS_KEY')
+GALLERIA_S3_PUBLIC_SECRET_KEY = os.getenv('GALLERIA_S3_PUBLIC_SECRET_KEY')
+GALLERIA_S3_PUBLIC_BUCKET = os.getenv('GALLERIA_S3_PUBLIC_BUCKET', 'galleria-wedding-public')
+GALLERIA_S3_PUBLIC_REGION = os.getenv('GALLERIA_S3_PUBLIC_REGION', 'us-east-1')
 ```
 
-#### Integration Functions Required
+#### Original Photo Archive Upload
+
+**Command**: `python manage.py upload-originals`
+
+```bash
+# Upload from settings.local.py path
+python manage.py upload-originals
+
+# Custom source with dry-run
+python manage.py upload-originals --source /path/to/photos --dry-run
+
+# Show progress bar
+python manage.py upload-originals --progress
+```
+
+**Requirements**:
+- Upload all photos from `PIC_SOURCE_PATH_FULL` (default: settings.local.py)
+- Maintain original directory structure in bucket
+- Skip already uploaded files (idempotent)
+- Generate SHA256 checksums for integrity
+- Support resumable uploads for large files
+
+#### Service Functions Required
 
 ```python
-def upload_to_hetzner(file_path, bucket, key) -> bool:
-    """Upload file to Hetzner bucket"""
+# src/services/s3_storage.py
+def get_s3_client(endpoint, access_key, secret_key, region='us-east-1'):
+    """Create boto3 S3 client for any S3-compatible service"""
     
-def download_from_hetzner(bucket, key, local_path) -> bool:
-    """Download file from Hetzner bucket"""
+def upload_file_to_s3(client, local_path, bucket, key, progress_callback=None):
+    """Upload single file with progress tracking"""
     
-def batch_upload_photos(photo_metadata, bucket) -> dict:
-    """Upload all processed photos with progress tracking"""
+def upload_directory_to_s3(client, local_dir, bucket, prefix='', dry_run=False):
+    """Upload entire directory preserving structure"""
+    
+def list_bucket_files(client, bucket, prefix=''):
+    """List all files in bucket with given prefix"""
+    
+def file_exists_in_s3(client, bucket, key):
+    """Check if file already exists in bucket"""
+
+# Future async operations (requires aioboto3)
+async def process_photos_streaming(source_bucket, dest_bucket):
+    """Stream photos from archive -> process -> upload to gallery"""
 ```
+
+#### Documentation Requirements
+
+- **doc/remote-storage-setup.md**: Step-by-step guide including:
+  - Hetzner Object Storage account setup
+  - Creating private archive bucket with restricted access
+  - Creating public gallery bucket with public read access
+  - Generating read-only access keys for private bucket
+  - Security best practices (IAM policies, CORS settings)
+  - Example configurations for AWS S3, DigitalOcean Spaces
+
+#### Testing Strategy
+
+- Mock S3 operations using moto library
+- Test upload resumption after interruption
+- Validate checksum verification
+- Test error handling and retry logic
+- Integration tests with actual S3-compatible service
+
+#### Future Planning Needed
+
+- **Async Photo Pipeline**: Details for streaming process (download → process → upload)
+- **Public Bucket Organization**: Directory structure for processed photos (full/web/thumb)
+- **CDN Integration**: How public bucket connects to BunnyCDN
+- **Metadata Sync**: Keeping local JSON cache in sync with remote storage
 
 ---
 
