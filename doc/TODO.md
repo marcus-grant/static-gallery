@@ -238,57 +238,61 @@ TEST_OUTPUT_PATH = Path(os.getenv('GALLERIA_TEST_OUTPUT_PATH',
 #### Architecture Overview
 
 **Dual-Bucket Strategy**:
-- **Private Archive Bucket**: Store original photos for safe-keeping (authenticated access only)
+- **Private Archive Bucket**: Store original photos for safe-keeping (authenticated access only) - initially via manual upload
 - **Public Gallery Bucket**: Store processed photos for public gallery access (via CDN)
 
 #### Acceptance Criteria
 
 - [ ] Generic S3-compatible implementation using boto3 (supports Hetzner, AWS, DigitalOcean, etc.)
-- [ ] Upload original photos to private archive bucket with `upload-originals` command
-- [ ] Preserve original directory structure and filenames in archive
-- [ ] Progress reporting and dry-run option for large collections
-- [ ] Upload processed photos to public gallery bucket
+- [ ] Upload processed photos to public gallery bucket with validation
 - [ ] Handle API errors gracefully with retry logic
 - [ ] Support batch operations for 30GB+ photo collections
 - [ ] Documentation for bucket setup with security best practices
+- [ ] S3 configuration with proper settings precedence
 
 #### Configuration Required
 
+**Settings Precedence**: All S3 settings follow standard hierarchy:
+`settings.py (defaults) → settings.local.py → GALLERIA_* env vars → CLI args`
+
+**Note**: Only environment variables use the `GALLERIA_` prefix (host-level scope)
+
 ```python
 # Private archive bucket (for original photos)
-GALLERIA_S3_ARCHIVE_ENDPOINT = os.getenv('GALLERIA_S3_ARCHIVE_ENDPOINT')
-GALLERIA_S3_ARCHIVE_ACCESS_KEY = os.getenv('GALLERIA_S3_ARCHIVE_ACCESS_KEY')
-GALLERIA_S3_ARCHIVE_SECRET_KEY = os.getenv('GALLERIA_S3_ARCHIVE_SECRET_KEY')
-GALLERIA_S3_ARCHIVE_BUCKET = os.getenv('GALLERIA_S3_ARCHIVE_BUCKET', 'galleria-originals-private')
-GALLERIA_S3_ARCHIVE_REGION = os.getenv('GALLERIA_S3_ARCHIVE_REGION', 'us-east-1')
+S3_ARCHIVE_ENDPOINT = os.getenv('GALLERIA_S3_ARCHIVE_ENDPOINT')
+S3_ARCHIVE_ACCESS_KEY = os.getenv('GALLERIA_S3_ARCHIVE_ACCESS_KEY')
+S3_ARCHIVE_SECRET_KEY = os.getenv('GALLERIA_S3_ARCHIVE_SECRET_KEY')
+S3_ARCHIVE_BUCKET = os.getenv('GALLERIA_S3_ARCHIVE_BUCKET', 'galleria-originals-private')
+S3_ARCHIVE_REGION = os.getenv('GALLERIA_S3_ARCHIVE_REGION', 'us-east-1')
 
 # Public gallery bucket (for processed photos)  
-GALLERIA_S3_PUBLIC_ENDPOINT = os.getenv('GALLERIA_S3_PUBLIC_ENDPOINT')
-GALLERIA_S3_PUBLIC_ACCESS_KEY = os.getenv('GALLERIA_S3_PUBLIC_ACCESS_KEY')
-GALLERIA_S3_PUBLIC_SECRET_KEY = os.getenv('GALLERIA_S3_PUBLIC_SECRET_KEY')
-GALLERIA_S3_PUBLIC_BUCKET = os.getenv('GALLERIA_S3_PUBLIC_BUCKET', 'galleria-wedding-public')
-GALLERIA_S3_PUBLIC_REGION = os.getenv('GALLERIA_S3_PUBLIC_REGION', 'us-east-1')
+S3_PUBLIC_ENDPOINT = os.getenv('GALLERIA_S3_PUBLIC_ENDPOINT')
+S3_PUBLIC_ACCESS_KEY = os.getenv('GALLERIA_S3_PUBLIC_ACCESS_KEY')
+S3_PUBLIC_SECRET_KEY = os.getenv('GALLERIA_S3_PUBLIC_SECRET_KEY')
+S3_PUBLIC_BUCKET = os.getenv('GALLERIA_S3_PUBLIC_BUCKET', 'galleria-wedding-public')
+S3_PUBLIC_REGION = os.getenv('GALLERIA_S3_PUBLIC_REGION', 'us-east-1')
 ```
 
-#### Original Photo Archive Upload
+#### Upload to Public Gallery Bucket
 
-**Command**: `python manage.py upload-originals`
+**Command**: `python manage.py upload-gallery`
 
 ```bash
-# Upload from settings.local.py path
-python manage.py upload-originals
+# Upload processed photos to public bucket
+python manage.py upload-gallery
 
-# Custom source with dry-run
-python manage.py upload-originals --source /path/to/photos --dry-run
+# Custom output directory with dry-run
+python manage.py upload-gallery --source ./processed-photos --dry-run
 
 # Show progress bar
-python manage.py upload-originals --progress
+python manage.py upload-gallery --progress
 ```
 
 **Requirements**:
-- Upload all photos from `PIC_SOURCE_PATH_FULL` (default: settings.local.py)
-- Maintain original directory structure in bucket
+- Upload processed photos (full/web/thumb) to public bucket
+- Maintain chronological filename structure
 - Skip already uploaded files (idempotent)
+- Validate S3 configuration before upload
 - Generate SHA256 checksums for integrity
 - Support resumable uploads for large files
 
@@ -322,8 +326,10 @@ async def process_photos_streaming(source_bucket, dest_bucket):
   - Hetzner Object Storage account setup
   - Creating private archive bucket with restricted access
   - Creating public gallery bucket with public read access
-  - Generating read-only access keys for private bucket
+  - Manual upload instructions for private archive bucket
+  - Environment variable configuration and precedence
   - Security best practices (IAM policies, CORS settings)
+  - CDN integration overview (detailed setup: TODO: `doc/bunnycdn-setup.md`)
   - Example configurations for AWS S3, DigitalOcean Spaces
 
 #### Testing Strategy
@@ -334,11 +340,22 @@ async def process_photos_streaming(source_bucket, dest_bucket):
 - Test error handling and retry logic
 - Integration tests with actual S3-compatible service
 
+#### Next Implementation Steps
+
+**IMPORTANT**: Before implementing upload-gallery command, plan the real-world test strategy:
+
+- **Test Planning Required**: Design comprehensive real-world test approach
+- **Observation Strategy**: What metrics/behaviors to monitor during upload
+- **Error Scenarios**: How to handle and recover from partial uploads
+- **Performance Monitoring**: Upload speed, memory usage, network behavior
+- **Verification Method**: How to confirm all files uploaded correctly
+- **Test Data Selection**: Which subset of photos to use for initial testing
+
+**Goal**: Minimize number of real-world test runs due to time/bandwidth costs
+
 #### Future Planning Needed
 
-- **Async Photo Pipeline**: Details for streaming process (download → process → upload)
 - **Public Bucket Organization**: Directory structure for processed photos (full/web/thumb)
-- **CDN Integration**: How public bucket connects to BunnyCDN
 - **Metadata Sync**: Keeping local JSON cache in sync with remote storage
 
 ---
@@ -452,6 +469,8 @@ Alpine.data('photoGallery', () => ({
 - [ ] Proper caching headers set
 - [ ] CDN URLs integrated into static site
 - [ ] Performance testing confirms global speed improvement
+- [ ] Create doc/bunnycdn-setup.md with detailed configuration steps
+- [ ] Update doc/remote-storage-setup.md to link to CDN documentation
 
 #### CDN Configuration Required
 

@@ -13,6 +13,19 @@
 - Streaming processing for very large collections
 - Multi-threaded/async uploads for performance
 
+### Working Entirely from Remote Storage
+- Allow remote object stores to contain the originals (no local storage required)
+- Download photos from archive bucket for processing as needed
+- Process and upload to public bucket without keeping local copies
+- Memory-efficient workflow for constrained environments
+
+### Automated Archive Upload Command
+- `upload-originals` command to automate upload from PIC_SOURCE_PATH_FULL
+- Preserve original directory structure and filenames in archive
+- Skip already uploaded files (idempotent)
+- Progress reporting and resumable uploads for large collections
+- SHA256 checksum verification for integrity
+
 ### Async Photo Processing Pipeline
 - Stream photos directly from remote archive storage without full local download
 - Process photos one at a time: download → process → upload to public bucket

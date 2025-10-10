@@ -16,6 +16,22 @@ PROCESSED_DIR = BASE_DIR / 'processed-photos'
 CONTENT_DIR = BASE_DIR / 'content'
 THEME_DIR = BASE_DIR / 'themes' / 'wedding'
 
+# S3-Compatible Storage Configuration Defaults
+# These have no sane defaults - must be configured per deployment
+# Private archive bucket (for original photos - manual upload)
+S3_ARCHIVE_ENDPOINT = None  # e.g., 'eu-central-1.s3.hetznerobjects.com'
+S3_ARCHIVE_ACCESS_KEY = None
+S3_ARCHIVE_SECRET_KEY = None
+S3_ARCHIVE_BUCKET = None  # Your private bucket name
+S3_ARCHIVE_REGION = None  # e.g., 'eu-central-1'
+
+# Public gallery bucket (for processed photos - automated upload)
+S3_PUBLIC_ENDPOINT = None  # e.g., 'eu-central-1.s3.hetznerobjects.com'
+S3_PUBLIC_ACCESS_KEY = None
+S3_PUBLIC_SECRET_KEY = None
+S3_PUBLIC_BUCKET = None  # Your public bucket name
+S3_PUBLIC_REGION = None  # e.g., 'eu-central-1'
+
 # XDG directories
 CONFIG_DIR = BASE_DIR  # Default to project root
 if 'XDG_CONFIG_HOME' in os.environ:
@@ -59,6 +75,20 @@ PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL', str(PIC_S
 OUTPUT_DIR = Path(os.getenv('GALLERIA_OUTPUT_DIR', str(OUTPUT_DIR)))
 PROCESSED_DIR = Path(os.getenv('GALLERIA_PROCESSED_DIR', str(PROCESSED_DIR)))
 
+# S3 settings - environment variable overrides
+S3_ARCHIVE_ENDPOINT = os.getenv('GALLERIA_S3_ARCHIVE_ENDPOINT', S3_ARCHIVE_ENDPOINT)
+S3_ARCHIVE_ACCESS_KEY = os.getenv('GALLERIA_S3_ARCHIVE_ACCESS_KEY', S3_ARCHIVE_ACCESS_KEY)
+S3_ARCHIVE_SECRET_KEY = os.getenv('GALLERIA_S3_ARCHIVE_SECRET_KEY', S3_ARCHIVE_SECRET_KEY)
+S3_ARCHIVE_BUCKET = os.getenv('GALLERIA_S3_ARCHIVE_BUCKET', S3_ARCHIVE_BUCKET)
+S3_ARCHIVE_REGION = os.getenv('GALLERIA_S3_ARCHIVE_REGION', S3_ARCHIVE_REGION)
+
+S3_PUBLIC_ENDPOINT = os.getenv('GALLERIA_S3_PUBLIC_ENDPOINT', S3_PUBLIC_ENDPOINT)
+S3_PUBLIC_ACCESS_KEY = os.getenv('GALLERIA_S3_PUBLIC_ACCESS_KEY', S3_PUBLIC_ACCESS_KEY)
+S3_PUBLIC_SECRET_KEY = os.getenv('GALLERIA_S3_PUBLIC_SECRET_KEY', S3_PUBLIC_SECRET_KEY)
+S3_PUBLIC_BUCKET = os.getenv('GALLERIA_S3_PUBLIC_BUCKET', S3_PUBLIC_BUCKET)
+S3_PUBLIC_REGION = os.getenv('GALLERIA_S3_PUBLIC_REGION', S3_PUBLIC_REGION)
+
 # TODO: Consider adding TEST_OUTPUT_PATH setting for real-world testing
 # This would allow test outputs to be separate from production processing paths
 # TEST_OUTPUT_PATH = Path(os.getenv('GALLERIA_TEST_OUTPUT_PATH', str(BASE_DIR / 'test-output')))
+
