@@ -59,6 +59,75 @@ Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
 - **Public Hetzner Bucket**: Full + web + thumbnail versions (for static site)
 - **BunnyCDN**: Global CDN caching content from public Hetzner bucket
 
+### Command Workflow & Sequence
+
+The project follows a clear command pipeline for processing and deploying photos:
+
+```txt
+Original Photos (PIC_SOURCE_PATH_FULL)
+    ↓ [process-photos]
+Processed Photos (PROCESSED_DIR)
+    ↓ [upload-photos]
+S3 Public Bucket
+    ↓ [build]
+Static Site (OUTPUT_DIR)
+    ↓ [deploy]
+Live Website
+```
+
+#### Command Overview
+
+1. **`process-photos`** - Photo processing pipeline
+   - Reads original photos from `PIC_SOURCE_PATH_FULL`
+   - Extracts EXIF data and generates chronological filenames
+   - Creates web-sized versions (2048x2048 max JPEG)
+   - Creates thumbnails (400x400 WebP)
+   - Outputs to `PROCESSED_DIR` with structure:
+     ```
+     processed-photos/
+       full/     (symlinks with chronological names)
+       web/      (resized JPEGs for web viewing)
+       thumb/    (WebP thumbnails for gallery grid)
+     ```
+
+2. **`upload-photos`** - S3 upload for processed photos
+   - Uploads from `PROCESSED_DIR` to S3 public bucket
+   - Preserves directory structure (full/web/thumb)
+   - Skips already uploaded files (idempotent)
+   - Supports dry-run and progress tracking
+
+3. **`build`** - Static site generation
+   - Generates JSON metadata from processed photos
+   - Creates static HTML using Jinja2 templates
+   - Copies static assets (CSS/JS)
+   - Outputs complete site to `OUTPUT_DIR`
+
+4. **`deploy`** - Site deployment
+   - Uploads static site from `OUTPUT_DIR` to hosting
+   - Can target S3 static website hosting or other platforms
+   - Handles CDN cache invalidation if needed
+
+#### Usage Patterns
+
+```bash
+# Full pipeline for new photos
+python manage.py process-photos
+python manage.py upload-photos --progress
+python manage.py build
+python manage.py deploy
+
+# Development workflow (skip S3 upload)
+python manage.py process-photos --source ./test-photos
+python manage.py build --skip-s3
+python manage.py deploy --dry-run
+
+# Update only the site (photos already processed)
+python manage.py build
+python manage.py deploy
+```
+
+**Note**: Each command can be run independently for testing and development. The commands are designed to be idempotent - running them multiple times is safe.
+
 ---
 
 ## Important Reminders
@@ -275,17 +344,17 @@ S3_PUBLIC_REGION = os.getenv('GALLERIA_S3_PUBLIC_REGION', 'us-east-1')
 
 #### Upload to Public Gallery Bucket
 
-**Command**: `python manage.py upload-gallery`
+**Command**: `python manage.py upload-photos`
 
 ```bash
 # Upload processed photos to public bucket
-python manage.py upload-gallery
+python manage.py upload-photos
 
 # Custom output directory with dry-run
-python manage.py upload-gallery --source ./processed-photos --dry-run
+python manage.py upload-photos --source ./processed-photos --dry-run
 
 # Show progress bar
-python manage.py upload-gallery --progress
+python manage.py upload-photos --progress
 ```
 
 **Requirements**:
@@ -342,7 +411,7 @@ async def process_photos_streaming(source_bucket, dest_bucket):
 
 #### Next Implementation Steps
 
-**IMPORTANT**: Before implementing upload-gallery command, plan the real-world test strategy:
+**IMPORTANT**: Before implementing upload-photos command, plan the real-world test strategy:
 
 - **Test Planning Required**: Design comprehensive real-world test approach
 - **Observation Strategy**: What metrics/behaviors to monitor during upload
@@ -495,26 +564,67 @@ Purge: Manual trigger capability
 - [ ] Non-obvious URL structure implemented
 - [ ] Full pipeline runs without manual intervention
 
-#### Build Script (build.py) Requirements
+#### Command Implementation Requirements
 
-```python
-def main():
-    # 1. Process photos (EXIF -> Chronological Filenames -> thumbnails)
-    # 2. Upload to Hetzner public bucket
-    # 3. Generate JSON metadata for gallery
-    # 4. Run custom HTML generation
-    # 5. Prepare for deployment
-```
+##### process-photos Command
 
-#### Deployment Script (deploy.py) Requirements
+**Purpose**: Process original photos into web-ready formats
 
-```python
-def main():
-    # 1. Upload static site to Hetzner
-    # 2. Configure CDN if needed
-    # 3. Verify deployment
-    # 4. Output final URLs
-```
+**CLI Options**:
+- `--source`, `-s`: Override PIC_SOURCE_PATH_FULL
+- `--output`, `-o`: Override PROCESSED_DIR
+- `--collection-name`: Name for this photo collection (default: from settings)
+- `--skip-existing`: Skip processing if output files exist
+- `--dry-run`: Show what would be processed without doing it
+- `--workers`: Number of parallel workers for processing
+
+**Processing Steps**:
+1. Scan source directory for image files
+2. Extract EXIF data from each photo
+3. Generate chronological filenames with burst handling
+4. Create symlinks in `full/` directory
+5. Generate web-sized JPEGs in `web/` directory
+6. Create WebP thumbnails in `thumb/` directory
+7. Save metadata to JSON cache
+
+##### build Command
+
+**Purpose**: Generate static website from processed photos
+
+**CLI Options**:
+- `--skip-s3`: Build using local files instead of S3 URLs
+- `--template-dir`: Override template directory
+- `--output`, `-o`: Override OUTPUT_DIR
+- `--dev-mode`: Use unminified CSS/JS for development
+
+**Build Steps**:
+1. Load photo metadata from JSON cache
+2. Generate photo manifest for JavaScript
+3. Render Jinja2 templates (index, gallery, etc.)
+4. Copy static assets (CSS, JS, images)
+5. Generate sitemap.xml
+6. Create deployment manifest
+
+##### upload-photos Command
+
+See "Upload to Public Gallery Bucket" section above for details.
+
+##### deploy Command
+
+**Purpose**: Deploy static site to production hosting
+
+**CLI Options**:
+- `--source`, `-s`: Override OUTPUT_DIR
+- `--target`: Deployment target (s3-static, netlify, etc.)
+- `--dry-run`: Show deployment plan without executing
+- `--invalidate-cdn`: Trigger CDN cache purge
+
+**Deployment Steps**:
+1. Validate deployment configuration
+2. Upload static files to hosting target
+3. Update DNS/CDN configuration if needed
+4. Verify deployment with smoke tests
+5. Output production URLs
 
 ---
 

@@ -107,16 +107,19 @@ def upload_file_to_s3(
             return result
         
         # Upload file
-        extra_args = {}
         if progress_callback:
-            extra_args['Callback'] = progress_callback
-            
-        client.upload_file(
-            str(local_path),
-            bucket,
-            key,
-            ExtraArgs=extra_args
-        )
+            client.upload_file(
+                str(local_path),
+                bucket,
+                key,
+                Callback=progress_callback
+            )
+        else:
+            client.upload_file(
+                str(local_path),
+                bucket,
+                key
+            )
         
         result['success'] = True
         

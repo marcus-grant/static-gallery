@@ -21,6 +21,7 @@ dev = [
     "pyfakefs",
     "ruff",
     "piexif>=1.1.3",
+    "moto[s3]",
 ]
 
 [tool.ruff]
