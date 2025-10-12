@@ -9,6 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 # Default settings - will be overridden by local settings then env vars
 PIC_SOURCE_PATH_FULL = BASE_DIR / 'pics'
+PIC_SOURCE_PATH_WEB = BASE_DIR / 'pics-web'  # Web-optimized versions from photographer
 OUTPUT_DIR = BASE_DIR / 'output'
 PROCESSED_DIR = BASE_DIR / 'processed-photos'
 
@@ -72,6 +73,7 @@ if LOCAL_SETTINGS_PATH.exists():
 
 # Apply environment variable overrides after local settings
 PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL', str(PIC_SOURCE_PATH_FULL)))
+PIC_SOURCE_PATH_WEB = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_WEB', str(PIC_SOURCE_PATH_WEB)))
 OUTPUT_DIR = Path(os.getenv('GALLERIA_OUTPUT_DIR', str(OUTPUT_DIR)))
 PROCESSED_DIR = Path(os.getenv('GALLERIA_PROCESSED_DIR', str(PROCESSED_DIR)))
 

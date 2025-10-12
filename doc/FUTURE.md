@@ -38,3 +38,10 @@
 - Parallel processing of photos
 - Progress reporting for large collections
 - Dry-run mode to preview operations
+
+### Automated Web-Sized Image Generation
+- Create web-sized versions (2048x2048 max JPEG) from originals
+- Automatic resizing with quality optimization
+- Support for different output formats and compression settings
+- Batch processing for large collections
+- Note: Currently not needed as photographer provides pre-optimized web versions

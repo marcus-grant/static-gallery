@@ -8,6 +8,7 @@ from unittest.mock import patch
 TEST_LOCAL_SETTINGS_CONTENT = """
 from pathlib import Path
 PIC_SOURCE_PATH_FULL = Path('/local/pics')
+PIC_SOURCE_PATH_WEB = Path('/local/pics-web')
 WEB_SIZE = (1024, 768)
 """
 
@@ -29,6 +30,7 @@ class TestSettingsHierarchy:
 
         assert hasattr(test_settings, "BASE_DIR")
         assert hasattr(test_settings, "PIC_SOURCE_PATH_FULL")
+        assert hasattr(test_settings, "PIC_SOURCE_PATH_WEB")
 
     def test_cache_dir_exists(self):
         # Test that CACHE_DIR setting exists
@@ -68,6 +70,7 @@ class TestSettingsHierarchy:
 
             # Local overrides should work
             assert str(test_settings.PIC_SOURCE_PATH_FULL) == "/local/pics"
+            assert str(test_settings.PIC_SOURCE_PATH_WEB) == "/local/pics-web"
             assert test_settings.WEB_SIZE == (1024, 768)
 
             # Non-overridden should keep defaults
@@ -85,12 +88,16 @@ class TestSettingsHierarchy:
             fs.create_file("settings/local.py", contents=TEST_LOCAL_SETTINGS_CONTENT)
 
             # Mock dotenv and set env var before importing
-            with patch.dict(os.environ, {"GALLERIA_PIC_SOURCE_PATH_FULL": "/env/pics"}):
+            with patch.dict(os.environ, {
+                "GALLERIA_PIC_SOURCE_PATH_FULL": "/env/pics",
+                "GALLERIA_PIC_SOURCE_PATH_WEB": "/env/pics-web"
+            }):
                 with patch("dotenv.load_dotenv"):
                     import settings as test_settings
 
                 # Env should override local
                 assert str(test_settings.PIC_SOURCE_PATH_FULL) == "/env/pics"
+                assert str(test_settings.PIC_SOURCE_PATH_WEB) == "/env/pics-web"
 
                 # Debug: Check if local settings are being imported at all
                 print(f"WEB_SIZE: {test_settings.WEB_SIZE}")
@@ -235,3 +242,35 @@ S3_ARCHIVE_BUCKET = 'local-bucket'
                 assert test_settings.S3_ARCHIVE_ACCESS_KEY == 'local-key'       # local > default
                 assert test_settings.S3_ARCHIVE_SECRET_KEY is None              # default
                 assert test_settings.S3_ARCHIVE_BUCKET == 'local-bucket'        # local > default
+
+    def test_pic_source_path_web_precedence(self):
+        """Test PIC_SOURCE_PATH_WEB follows same precedence as other path settings."""
+        web_path_local_settings = """
+from pathlib import Path
+PIC_SOURCE_PATH_WEB = Path('/local/web-pics')
+PIC_SOURCE_PATH_FULL = Path('/local/full-pics')
+"""
+        
+        with Patcher(modules_to_reload=[]) as patcher:
+            fs = patcher.fs
+            
+            # Create local settings
+            import pathlib
+            settings_path = pathlib.Path(__file__).resolve().parent.parent / "settings.py"
+            base_dir = settings_path.parent
+            local_settings_path = base_dir / "settings.local.py"
+            
+            fs.create_file(str(local_settings_path), contents=web_path_local_settings)
+            
+            # Set only web path env var to test precedence
+            env_overrides = {'GALLERIA_PIC_SOURCE_PATH_WEB': '/env/web-pics'}
+            
+            with patch.dict(os.environ, env_overrides):
+                with patch("dotenv.load_dotenv"):
+                    import settings as test_settings
+                
+                # Verify precedence:
+                # - WEB: env var overrides local setting
+                # - FULL: local setting overrides default
+                assert str(test_settings.PIC_SOURCE_PATH_WEB) == '/env/web-pics'  # env > local
+                assert str(test_settings.PIC_SOURCE_PATH_FULL) == '/local/full-pics'  # local > default

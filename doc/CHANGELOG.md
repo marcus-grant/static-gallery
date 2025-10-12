@@ -1,5 +1,14 @@
 # Galleria Changelog
 
+## 2025-10-12
+
+### Photo Processing Pipeline Complete
+- **process-photos command**: Dual collection processing with full and web-optimized photos
+- **Collection validation**: Ensures 1:1 matching between full and web collections  
+- **Idempotent processing**: Skips unchanged photos using timestamp comparison
+- **Real-world validation**: Successfully processed 645 wedding photos without sequencing errors
+- **S3 storage service**: Complete implementation with moto testing for upload operations
+
 ## 2025-10-08
 
 ### Data Models & JSON Persistence (Completed)

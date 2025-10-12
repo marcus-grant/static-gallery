@@ -1,5 +1,7 @@
 # Galleria - Development Specification
 
+**Commands implemented**: find-samples, upload-photos, process-photos
+
 ## Project Overview
 
 A static photo gallery built with a custom Python static site generator,
@@ -61,17 +63,17 @@ Private Bucket (Hetzner):     Public Bucket (Hetzner):        Static Site:
 
 ### Command Workflow & Sequence
 
-The project follows a clear command pipeline for processing and deploying photos:
+The project follows a simplified workflow for processing and deploying the photo gallery:
 
 ```txt
-Original Photos (PIC_SOURCE_PATH_FULL)
-    ↓ [process-photos]
+Original Photos (PIC_SOURCE_PATH_FULL + PIC_SOURCE_PATH_WEB)
+    ↓ [process-photos] 
 Processed Photos (PROCESSED_DIR)
-    ↓ [upload-photos]
-S3 Public Bucket
     ↓ [build]
 Static Site (OUTPUT_DIR)
-    ↓ [deploy]
+    ↓ [deploy] 
+Single S3 Bucket (photos + HTML + CSS + JS)
+    ↓
 Live Website
 ```
 
@@ -79,54 +81,52 @@ Live Website
 
 1. **`process-photos`** - Photo processing pipeline
    - Reads original photos from `PIC_SOURCE_PATH_FULL`
+   - Reads web-optimized photos from `PIC_SOURCE_PATH_WEB` 
    - Extracts EXIF data and generates chronological filenames
-   - Creates web-sized versions (2048x2048 max JPEG)
-   - Creates thumbnails (400x400 WebP)
+   - Creates thumbnails (400x400 WebP) from web versions
+   - Validates filename consistency between full and web collections
    - Outputs to `PROCESSED_DIR` with structure:
      ```
      processed-photos/
-       full/     (symlinks with chronological names)
-       web/      (resized JPEGs for web viewing)
-       thumb/    (WebP thumbnails for gallery grid)
+       full/     (symlinks to originals with chronological names)
+       web/      (symlinks to photographer's web-optimized versions)
+       thumb/    (WebP thumbnails generated from web versions)
      ```
 
-2. **`upload-photos`** - S3 upload for processed photos
-   - Uploads from `PROCESSED_DIR` to S3 public bucket
-   - Preserves directory structure (full/web/thumb)
-   - Skips already uploaded files (idempotent)
-   - Supports dry-run and progress tracking
-
-3. **`build`** - Static site generation
+2. **`build`** - Static site generation  
    - Generates JSON metadata from processed photos
    - Creates static HTML using Jinja2 templates
    - Copies static assets (CSS/JS)
    - Outputs complete site to `OUTPUT_DIR`
 
-4. **`deploy`** - Site deployment
-   - Uploads static site from `OUTPUT_DIR` to hosting
-   - Can target S3 static website hosting or other platforms
+3. **`deploy`** - Complete site deployment
+   - Idempotently uploads entire site to single S3 bucket:
+     - Photos (full/web/thumb) to `/photos/` prefix
+     - Static site files (HTML/CSS/JS) to bucket root
+     - JSON metadata for gallery functionality
+   - Skips already uploaded files for efficiency
+   - Supports dry-run and progress tracking
    - Handles CDN cache invalidation if needed
 
 #### Usage Patterns
 
 ```bash
-# Full pipeline for new photos
+# Full pipeline for new gallery
 python manage.py process-photos
-python manage.py upload-photos --progress
-python manage.py build
-python manage.py deploy
+python manage.py build  
+python manage.py deploy --progress
 
-# Development workflow (skip S3 upload)
+# Development workflow
 python manage.py process-photos --source ./test-photos
-python manage.py build --skip-s3
+python manage.py build --dev-mode
 python manage.py deploy --dry-run
 
-# Update only the site (photos already processed)
+# Quick site update (photos already processed)
 python manage.py build
 python manage.py deploy
 ```
 
-**Note**: Each command can be run independently for testing and development. The commands are designed to be idempotent - running them multiple times is safe.
+**Note**: Commands are designed to be idempotent - running them multiple times is safe. The `deploy` command handles all upload operations to maintain consistency.
 
 ---
 
@@ -210,228 +210,9 @@ python manage.py deploy
 
 ## Development Tasks & Specifications
 
-
-
-### Settings Architecture & Command Infrastructure
-
-**Deliverable**: Django-style settings hierarchy with command system
-
-#### Acceptance Criteria
-
-- [x] Command infrastructure with manage.py entry point
-- [x] find-samples command implemented with all edge case detection
-- [x] Settings hierarchy with TEST_OUTPUT_PATH for separating test results from production paths
-
-#### Settings Architecture
-
-```python
-# Directory hierarchy with XDG compliance (XDG overrides project defaults)
-CONFIG_DIR = BASE_DIR  # Default: project root, override: ~/.config/galleria
-CACHE_DIR = BASE_DIR / 'cache'  # Default: ./cache, override: ~/.cache/galleria
-
-# Local settings: project_root/settings.local.py (default)
-LOCAL_SETTINGS_FILENAME = os.getenv('GALLERIA_LOCAL_SETTINGS_FILENAME', 'settings.local.py')
-LOCAL_SETTINGS_PATH = CONFIG_DIR / LOCAL_SETTINGS_FILENAME
-
-# Photo paths: ./pics (default fallback), production uses XDG data directories
-PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL', 
-                                      str(BASE_DIR / 'pics')))
-
-# Test output paths: Keep test results separate from production processing
-TEST_OUTPUT_PATH = Path(os.getenv('GALLERIA_TEST_OUTPUT_PATH', 
-                                  str(CACHE_DIR / 'test-output')))
-```
-
-#### Command Structure
-
-- manage.py - Click-based command entry point
-- src/command/find_samples.py - Scan photos, detect edge cases, extract EXIF, save to JSON
-
-##### find-samples Command Requirements
-**Purpose**: Identify sample photos for testing the processing pipeline
-
-**Edge Cases to Detect**:
-- Burst mode sequences (photos with identical/near-identical timestamps)
-- Missing or corrupted EXIF data
-- Timestamp conflicts (same timestamp from different cameras)
-- Camera variety (different manufacturers, filename patterns)
-- Timezone differences (using GPS data)
-- Filename edge cases (rollovers, special characters, user-renamed)
-
-**CLI Options**:
-- `--pic-source-path-full`, `--pic-source`, `-s`: Directory to scan (overrides settings)
-- `--generate-dummy-samples`: Create synthetic test images for missing edge cases
-- `--sample-types`: Comma-separated list of edge cases to detect (default: all)
-- `--output-format`: Output format - json, text (default: json)
-- `--cache-file`: Override default JSON file location (default: CACHE_DIR/samples.json)
-
-**Output Structure** (saved to JSON):
-```python
-{
-    'photos': [
-        {
-            'path': Path,
-            'exif': dict,  # Extracted EXIF data
-            'edge_cases': ['burst', 'missing_exif'],  # Detected issues
-            'camera': str,  # Camera model/manufacturer
-            'timestamp': datetime,
-            'gps': tuple,  # (lat, lon) if available
-        }
-    ],
-    'summary': {
-        'total_photos': int,
-        'edge_case_counts': {'burst': 5, 'missing_exif': 2, ...},
-        'cameras': {'Canon EOS 5D': 10, 'iPhone 12': 5, ...},
-    }
-}
-```
-
-#### Test Coverage Required
-
-- Settings import hierarchy (default, local override, env override, CLI override)
-- XDG cache directory resolution
-- Command option parsing and settings integration
-- Edge case detection logic (burst, missing EXIF, timestamp conflicts)
-- EXIF extraction functionality
-- JSON file save/load operations
-- Dummy sample generation
-
----
-
-
-
-### Remote Storage Integration (S3-Compatible)
-
-**Deliverable**: S3-compatible object storage for both archive and production photos
-
-#### Architecture Overview
-
-**Dual-Bucket Strategy**:
-- **Private Archive Bucket**: Store original photos for safe-keeping (authenticated access only) - initially via manual upload
-- **Public Gallery Bucket**: Store processed photos for public gallery access (via CDN)
-
-#### Acceptance Criteria
-
-- [ ] Generic S3-compatible implementation using boto3 (supports Hetzner, AWS, DigitalOcean, etc.)
-- [ ] Upload processed photos to public gallery bucket with validation
-- [ ] Handle API errors gracefully with retry logic
-- [ ] Support batch operations for 30GB+ photo collections
-- [ ] Documentation for bucket setup with security best practices
-- [ ] S3 configuration with proper settings precedence
-
-#### Configuration Required
-
-**Settings Precedence**: All S3 settings follow standard hierarchy:
-`settings.py (defaults) → settings.local.py → GALLERIA_* env vars → CLI args`
-
-**Note**: Only environment variables use the `GALLERIA_` prefix (host-level scope)
-
-```python
-# Private archive bucket (for original photos)
-S3_ARCHIVE_ENDPOINT = os.getenv('GALLERIA_S3_ARCHIVE_ENDPOINT')
-S3_ARCHIVE_ACCESS_KEY = os.getenv('GALLERIA_S3_ARCHIVE_ACCESS_KEY')
-S3_ARCHIVE_SECRET_KEY = os.getenv('GALLERIA_S3_ARCHIVE_SECRET_KEY')
-S3_ARCHIVE_BUCKET = os.getenv('GALLERIA_S3_ARCHIVE_BUCKET', 'galleria-originals-private')
-S3_ARCHIVE_REGION = os.getenv('GALLERIA_S3_ARCHIVE_REGION', 'us-east-1')
-
-# Public gallery bucket (for processed photos)  
-S3_PUBLIC_ENDPOINT = os.getenv('GALLERIA_S3_PUBLIC_ENDPOINT')
-S3_PUBLIC_ACCESS_KEY = os.getenv('GALLERIA_S3_PUBLIC_ACCESS_KEY')
-S3_PUBLIC_SECRET_KEY = os.getenv('GALLERIA_S3_PUBLIC_SECRET_KEY')
-S3_PUBLIC_BUCKET = os.getenv('GALLERIA_S3_PUBLIC_BUCKET', 'galleria-wedding-public')
-S3_PUBLIC_REGION = os.getenv('GALLERIA_S3_PUBLIC_REGION', 'us-east-1')
-```
-
-#### Upload to Public Gallery Bucket
-
-**Command**: `python manage.py upload-photos`
-
-```bash
-# Upload processed photos to public bucket
-python manage.py upload-photos
-
-# Custom output directory with dry-run
-python manage.py upload-photos --source ./processed-photos --dry-run
-
-# Show progress bar
-python manage.py upload-photos --progress
-```
-
-**Requirements**:
-- Upload processed photos (full/web/thumb) to public bucket
-- Maintain chronological filename structure
-- Skip already uploaded files (idempotent)
-- Validate S3 configuration before upload
-- Generate SHA256 checksums for integrity
-- Support resumable uploads for large files
-
-#### Service Functions Required
-
-```python
-# src/services/s3_storage.py
-def get_s3_client(endpoint, access_key, secret_key, region='us-east-1'):
-    """Create boto3 S3 client for any S3-compatible service"""
-    
-def upload_file_to_s3(client, local_path, bucket, key, progress_callback=None):
-    """Upload single file with progress tracking"""
-    
-def upload_directory_to_s3(client, local_dir, bucket, prefix='', dry_run=False):
-    """Upload entire directory preserving structure"""
-    
-def list_bucket_files(client, bucket, prefix=''):
-    """List all files in bucket with given prefix"""
-    
-def file_exists_in_s3(client, bucket, key):
-    """Check if file already exists in bucket"""
-
-# Future async operations (requires aioboto3)
-async def process_photos_streaming(source_bucket, dest_bucket):
-    """Stream photos from archive -> process -> upload to gallery"""
-```
-
-#### Documentation Requirements
-
-- **doc/remote-storage-setup.md**: Step-by-step guide including:
-  - Hetzner Object Storage account setup
-  - Creating private archive bucket with restricted access
-  - Creating public gallery bucket with public read access
-  - Manual upload instructions for private archive bucket
-  - Environment variable configuration and precedence
-  - Security best practices (IAM policies, CORS settings)
-  - CDN integration overview (detailed setup: TODO: `doc/bunnycdn-setup.md`)
-  - Example configurations for AWS S3, DigitalOcean Spaces
-
-#### Testing Strategy
-
-- Mock S3 operations using moto library
-- Test upload resumption after interruption
-- Validate checksum verification
-- Test error handling and retry logic
-- Integration tests with actual S3-compatible service
-
-#### Next Implementation Steps
-
-**IMPORTANT**: Before implementing upload-photos command, plan the real-world test strategy:
-
-- **Test Planning Required**: Design comprehensive real-world test approach
-- **Observation Strategy**: What metrics/behaviors to monitor during upload
-- **Error Scenarios**: How to handle and recover from partial uploads
-- **Performance Monitoring**: Upload speed, memory usage, network behavior
-- **Verification Method**: How to confirm all files uploaded correctly
-- **Test Data Selection**: Which subset of photos to use for initial testing
-
-**Goal**: Minimize number of real-world test runs due to time/bandwidth costs
-
-#### Future Planning Needed
-
-- **Public Bucket Organization**: Directory structure for processed photos (full/web/thumb)
-- **Metadata Sync**: Keeping local JSON cache in sync with remote storage
-
----
-
 ### Static Site Generation
 
-**Deliverable**: Custom HTML generation with Jinja2 templates
+**Deliverable**: Custom HTML generation with Jinja2 templates **[NEXT PRIORITY]**
 
 #### Acceptance Criteria
 
