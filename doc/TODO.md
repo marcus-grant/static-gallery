@@ -282,7 +282,7 @@ STATIC_PATHS = ['css', 'js', 'img']
    - Creates directory structure: prod/site/, prod/site/css/, prod/site/js/
    - Reports what directories were created/already exist
 
-3. **Photo metadata service** (test/services/test_photo_metadata.py) **[NEXT]**
+3. **Photo metadata service** (test/services/test_photo_metadata.py) [x]
    - Scans prod/pics/ for processed photos
    - Extracts metadata from chronological filenames
    - Generates JSON structure for frontend
