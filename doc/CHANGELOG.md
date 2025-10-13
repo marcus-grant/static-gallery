@@ -1,5 +1,14 @@
 # Galleria Changelog
 
+## 2025-10-13
+
+### Build Command Started with TDD Approach
+- **Build command**: Basic CLI structure with status reporting
+- **Site generator service**: Directory checking and creation functionality
+- **TDD separation of concerns**: Command handles terminal I/O, service handles actual work
+- **Directory structure**: Creates prod/site/ with css/ and js/ subdirectories
+- **Idempotent operation**: Detects existing directories and reports appropriately
+
 ## 2025-10-12
 
 ### Photo Processing Pipeline Complete

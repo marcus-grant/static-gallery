@@ -266,6 +266,41 @@ STATIC_PATHS = ['css', 'js', 'img']
 - Select all/none functionality
 - AlpineJS state management
 
+#### Build Command Implementation Approach
+
+**TDD Strategy**: Strict separation of concerns
+- **Command module**: Terminal I/O only (status messages, error reporting)
+- **Service modules**: All actual work (directory creation, file generation, etc.)
+
+**Implementation Steps**:
+
+1. **Build command basics** (test/command/test_build.py) ✅
+   - Command exists and is callable
+   - Outputs status messages with keywords: build, site, generating
+
+2. **Site generator service** (test/services/test_site_generator.py) ✅
+   - Creates directory structure: prod/site/, prod/site/css/, prod/site/js/
+   - Reports what directories were created/already exist
+
+3. **Photo metadata service** (test/services/test_photo_metadata.py) **[NEXT]**
+   - Scans prod/pics/ for processed photos
+   - Extracts metadata from chronological filenames
+   - Generates JSON structure for frontend
+
+4. **Template rendering service** (test/services/test_template_renderer.py)
+   - Renders Jinja2 templates with photo data
+   - Generates HTML files
+
+5. **Static asset service** (test/services/test_static_assets.py)
+   - Copies CSS/JS files to output
+   - Generates photos.json API endpoint
+
+**Key Principles**:
+- Command module ONLY handles terminal I/O
+- Each service has single responsibility
+- TDD: Write failing test → implement → refactor
+- No CLI options until MVP complete
+
 ---
 
 ### Frontend Functionality
