@@ -287,9 +287,10 @@ STATIC_PATHS = ['css', 'js', 'img']
    - Extracts metadata from chronological filenames
    - Generates JSON structure for frontend
 
-4. **Template rendering service** (test/services/test_template_renderer.py)
-   - Renders Jinja2 templates with photo data
-   - Generates HTML files
+4. **Template rendering service** (test/services/test_template_renderer.py) **[NEXT]**
+   - Renders Jinja2 templates with photo data [x]
+   - Generates HTML files to output directory
+   - Separate template tests for HTML content validation
 
 5. **Static asset service** (test/services/test_static_assets.py)
    - Copies CSS/JS files to output
