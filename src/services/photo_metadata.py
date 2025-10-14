@@ -33,11 +33,16 @@ class PhotoMetadataService:
             metadata = self.extract_metadata_from_filename(filename)
             
             if metadata:
+                # Generate URLs for the photos
+                base_name = filename.replace('.jpg', '')
                 photo_data.append({
                     "filename": filename,
                     "timestamp": metadata["timestamp"],
                     "camera": metadata["camera"],
-                    "sequence": metadata["sequence"]
+                    "sequence": metadata["sequence"],
+                    "thumb_url": f"/photos/thumb/{base_name}.webp",
+                    "web_url": f"/photos/web/{filename}",
+                    "full_url": f"/photos/full/{filename}"
                 })
         
         return {"photos": photo_data}

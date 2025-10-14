@@ -182,23 +182,27 @@ static/
 
 #### Development Server with Hot Reload
 
-**Deliverable**: Local development server for template development
+**Deliverable**: Local development server for template development **[IN PROGRESS]**
 
 ##### Requirements
-- Hot-reloading dev server that watches template files
-- Automatically rebuilds on template/CSS/JS changes
-- Serves from prod/site/ directory
-- Root path (/) returns 404 without index.html
-- /gallery path serves gallery.html
-- Live browser refresh on changes
-- Simple Python-based server (no heavy dependencies)
+- [x] Hot-reloading dev server that watches template files
+- [x] Automatically rebuilds on template/CSS/JS changes  
+- [x] Serves from prod/site/ directory
+- [x] Root path (/) returns 404 without index.html
+- [x] /gallery path serves gallery.html
+- [x] Command: `python manage.py serve --reload`
+- [x] Photo serving from /photos/* → prod/pics/*
+- [ ] Debug photo display issues (images not loading)
+- [ ] Live browser refresh on changes
 
-##### Implementation Approach
-- Use Python's built-in http.server with custom handler
-- Watch templates with watchdog or similar
-- Trigger rebuild on file changes
-- WebSocket or SSE for browser auto-refresh
-- Command: `python manage.py serve --reload`
+##### Implementation Status
+- ✅ TDD tests for dev server (14 tests passing)
+- ✅ Custom HTTP handler with routing
+- ✅ File watcher with watchdog library
+- ✅ Fixed build command template path (src/template/)
+- ✅ Fixed PhotoMetadataService URL generation
+- 🚧 Photo serving implementation needs debugging
+- ⏳ Browser auto-refresh (WebSocket/SSE) - low priority
 
 #### Site Generation Configuration
 
