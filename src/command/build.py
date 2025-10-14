@@ -10,6 +10,8 @@ from src.services.site_generator import (
     check_source_subdirectories,
     create_output_directory_structure
 )
+from src.services.photo_metadata import PhotoMetadataService
+from src.services.template_renderer import TemplateRenderer
 
 
 @click.command()
@@ -41,5 +43,27 @@ def build():
         click.echo("Created directory structure: prod/site with css/ and js/ subdirectories")
     else:
         click.echo("Output directory already exists: prod/site")
+    
+    # Generate photo metadata
+    click.echo("Scanning photos...")
+    metadata_service = PhotoMetadataService()
+    photo_data = metadata_service.generate_json_metadata()
+    
+    if photo_data['photos']:
+        click.echo(f"Found {len(photo_data['photos'])} photos")
+        
+        # Check if template exists before rendering
+        template_path = Path("templates/gallery.j2.html")
+        if template_path.exists():
+            # Render and save gallery
+            click.echo("Generating gallery...")
+            renderer = TemplateRenderer()
+            gallery_html = renderer.render_gallery(photo_data)
+            renderer.save_html(gallery_html, "prod/site/gallery.html")
+            click.echo("Gallery page created: prod/site/gallery.html")
+        else:
+            click.echo("Template not found: templates/gallery.j2.html")
+    else:
+        click.echo("No photos found to generate gallery")
     
     click.echo("Build complete!")

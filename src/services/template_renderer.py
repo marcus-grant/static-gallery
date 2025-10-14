@@ -10,3 +10,9 @@ class TemplateRenderer:
     def render_gallery(self, photo_data):
         template = self.env.get_template("gallery.j2.html")
         return template.render(photo_data)
+    
+    def save_html(self, html_content, output_path):
+        output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w") as f:
+            f.write(html_content)

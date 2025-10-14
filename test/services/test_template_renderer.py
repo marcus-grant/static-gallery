@@ -31,3 +31,27 @@ def test_template_renderer_calls_correct_template_for_gallery():
         
         # Verify we got the rendered result
         assert html == "<html>Gallery HTML</html>"
+
+
+def test_template_renderer_saves_rendered_html_to_file():
+    """Test that renderer can save rendered HTML to output directory"""
+    renderer = TemplateRenderer()
+    
+    # Mock file operations
+    mock_open = Mock()
+    mock_file = Mock()
+    mock_open.return_value.__enter__ = Mock(return_value=mock_file)
+    mock_open.return_value.__exit__ = Mock(return_value=None)
+    
+    with patch('builtins.open', mock_open):
+        with patch('pathlib.Path.mkdir') as mock_mkdir:
+            renderer.save_html("<html>Test</html>", "prod/site/gallery.html")
+            
+            # Verify directory was created
+            mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
+            
+            # Verify file was opened for writing
+            mock_open.assert_called_once_with("prod/site/gallery.html", "w")
+            
+            # Verify HTML was written
+            mock_file.write.assert_called_once_with("<html>Test</html>")

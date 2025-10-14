@@ -78,3 +78,41 @@ def test_build_creates_output_directory_structure():
         
         # Check output mentions creation
         assert 'creating' in result.output.lower() or 'created' in result.output.lower()
+
+
+def test_build_generates_gallery_html():
+    """Test that build command generates gallery.html from processed photos."""
+    from manage import cli
+    
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        # Create source structure with a photo
+        source_dir = Path.cwd() / "prod" / "pics"
+        source_dir.mkdir(parents=True)
+        (source_dir / "full").mkdir()
+        (source_dir / "web").mkdir() 
+        (source_dir / "thumb").mkdir()
+        
+        # Create a test photo
+        test_photo = source_dir / "full" / "wedding-20250809T132034.000Z+0200-r5a-001.jpg"
+        test_photo.write_text("fake photo content")
+        
+        # Create templates directory
+        templates_dir = Path.cwd() / "templates"
+        templates_dir.mkdir()
+        gallery_template = templates_dir / "gallery.j2.html"
+        gallery_template.write_text("<html>{{ photos|length }} photos</html>")
+        
+        # Run build command
+        result = runner.invoke(cli, ['build'])
+        
+        # Check gallery.html was created
+        gallery_html = Path.cwd() / "prod" / "site" / "gallery.html"
+        assert gallery_html.exists()
+        
+        # Check content has photo data
+        content = gallery_html.read_text()
+        assert "1 photos" in content
+        
+        # Check output mentions HTML generation
+        assert 'gallery' in result.output.lower()
