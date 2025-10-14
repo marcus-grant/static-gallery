@@ -180,6 +180,26 @@ static/
   - Click backdrop (20% area) to close
 - **Implementation**: Alpine.js with click zones and keyboard handlers
 
+#### Development Server with Hot Reload
+
+**Deliverable**: Local development server for template development
+
+##### Requirements
+- Hot-reloading dev server that watches template files
+- Automatically rebuilds on template/CSS/JS changes
+- Serves from prod/site/ directory
+- Root path (/) returns 404 without index.html
+- /gallery path serves gallery.html
+- Live browser refresh on changes
+- Simple Python-based server (no heavy dependencies)
+
+##### Implementation Approach
+- Use Python's built-in http.server with custom handler
+- Watch templates with watchdog or similar
+- Trigger rebuild on file changes
+- WebSocket or SSE for browser auto-refresh
+- Command: `python manage.py serve --reload`
+
 #### Site Generation Configuration
 
 ```python

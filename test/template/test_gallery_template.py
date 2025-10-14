@@ -49,3 +49,29 @@ def test_gallery_template_renders_photo_cells_when_photos_provided():
     # Check for Alpine.js click handlers on photo cells
     click_elements = soup.find_all(attrs={'@click': True})
     assert len(click_elements) >= 2
+
+
+def test_gallery_template_uses_photo_grid_component():
+    """Test that gallery template uses photo-grid component for structure"""
+    renderer = TemplateRenderer()
+    photo_data = {
+        "photos": [
+            {
+                "filename": "test.jpg",
+                "thumb_url": "/test.webp",
+                "web_url": "/test.jpg"
+            }
+        ]
+    }
+    
+    html = renderer.render("gallery.j2.html", photo_data)
+    soup = BeautifulSoup(html, 'html.parser')
+    
+    # Gallery should have only ONE grid container (from photo-grid component)
+    grid_containers = soup.find_all('div', class_=lambda x: x and 'grid' in x and 'grid-cols' in x)
+    assert len(grid_containers) == 1
+    
+    # The grid should be inside the Alpine.js data container
+    alpine_container = soup.find(attrs={'x-data': True})
+    grid_in_alpine = alpine_container.find('div', class_=lambda x: x and 'grid' in x)
+    assert grid_in_alpine is not None

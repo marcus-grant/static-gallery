@@ -10,11 +10,8 @@
 </head>
 <body>
   <div x-data="photoGallery()">
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4">
-      {% for photo in photos %}
-        {% include 'components/photo-cell.j2.html' with context %}
-      {% endfor %}
-    </div>
+    {% set grid_classes = "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4" %}
+    {% include 'components/photo-grid.j2.html' with context %}
   </div>
 </body>
 </html>

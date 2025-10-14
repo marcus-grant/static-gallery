@@ -1,0 +1,5 @@
+<div class="{{ grid_classes }}">
+  {% for photo in photos %}
+    {% include 'components/photo-cell.j2.html' with context %}
+  {% endfor %}
+</div>

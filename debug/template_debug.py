@@ -50,6 +50,26 @@ class TemplateDebugger:
             f"Gallery Template with {photo_count} Photos"
         )
     
+    def debug_photo_grid(self, photo_count=2):
+        """Debug photo-grid component with sample photos"""
+        sample_photos = []
+        for i in range(photo_count):
+            sample_photos.append({
+                "filename": f"2024-06-15_14-{30+i*2:02d}-{45+i*5:02d}_grid-test-{i+1}.jpg",
+                "thumb_url": f"/photos/thumb/2024-06-15_14-{30+i*2:02d}-{45+i*5:02d}_grid-test-{i+1}.webp",
+                "web_url": f"/photos/web/2024-06-15_14-{30+i*2:02d}-{45+i*5:02d}_grid-test-{i+1}.jpg"
+            })
+        
+        data = {
+            "photos": sample_photos,
+            "grid_classes": "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4"
+        }
+        return self.render_and_print(
+            lambda d: self.renderer.render("components/photo-grid.j2.html", d),
+            data,
+            f"Photo Grid Component with {photo_count} Photos"
+        )
+    
     def debug_photo_cell(self):
         """Debug single photo-cell component"""
         data = {
