@@ -22,6 +22,7 @@ dev = [
     "ruff",
     "piexif>=1.1.3",
     "moto[s3]",
+    "beautifulsoup4",
 ]
 
 [tool.ruff]

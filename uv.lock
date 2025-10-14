@@ -3,6 +3,19 @@ revision = 3
 requires-python = ">=3.12"
 
 [[package]]
+name = "beautifulsoup4"
+version = "4.14.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "soupsieve" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/77/e9/df2358efd7659577435e2177bfa69cba6c33216681af51a707193dec162a/beautifulsoup4-4.14.2.tar.gz", hash = "sha256:2a98ab9f944a11acee9cc848508ec28d9228abfd522ef0fad6a02a72e0ded69e", size = 625822, upload-time = "2025-09-29T10:05:42.613Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/94/fe/3aed5d0be4d404d12d36ab97e2f1791424d9ca39c2f754a6285d59a3b01d/beautifulsoup4-4.14.2-py3-none-any.whl", hash = "sha256:5ef6fa3a8cbece8488d66985560f97ed091e22bbc4e9c2338508a9d5de6d4515", size = 106392, upload-time = "2025-09-29T10:05:43.771Z" },
+]
+
+[[package]]
 name = "boto3"
 version = "1.40.46"
 source = { registry = "https://pypi.org/simple" }
@@ -323,6 +336,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "beautifulsoup4" },
     { name = "moto", extra = ["s3"] },
     { name = "piexif" },
     { name = "pyfakefs" },
@@ -345,6 +359,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "beautifulsoup4" },
     { name = "moto", extras = ["s3"] },
     { name = "piexif", specifier = ">=1.1.3" },
     { name = "pyfakefs" },
@@ -899,6 +914,15 @@ wheels = [
 ]
 
 [[package]]
+name = "soupsieve"
+version = "2.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6d/e6/21ccce3262dd4889aa3332e5a119a3491a95e8f60939870a3a035aabac0d/soupsieve-2.8.tar.gz", hash = "sha256:e2dd4a40a628cb5f28f6d4b0db8800b8f581b65bb380b97de22ba5ca8d72572f", size = 103472, upload-time = "2025-08-27T15:39:51.78Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/14/a0/bb38d3b76b8cae341dad93a2dd83ab7462e6dbcdd84d43f54ee60a8dc167/soupsieve-2.8-py3-none-any.whl", hash = "sha256:0cc76456a30e20f5d7f2e14a98a4ae2ee4e5abdc7c5ea0aafe795f344bc7984c", size = 36679, upload-time = "2025-08-27T15:39:50.179Z" },
+]
+
+[[package]]
 name = "timezonefinder"
 version = "8.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -912,6 +936,15 @@ sdist = { url = "https://files.pythonhosted.org/packages/9c/20/a5daf4418e2aa8956
 wheels = [
     { url = "https://files.pythonhosted.org/packages/35/17/fd9f301c6e8a97b2e5772ff36a1623fd6947359a1ec1c9f7f1b841b8bb38/timezonefinder-8.1.0-cp39-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:433612bcc8924ba9200df17268573895a8742ead435923e69a95245b1db0ce75", size = 28172566, upload-time = "2025-09-22T16:23:45.43Z" },
     { url = "https://files.pythonhosted.org/packages/c3/71/e28a59b645cafe0f2c0261cdbd7cd4eed47cbdb13870c4f5875ba43e796c/timezonefinder-8.1.0-cp39-abi3-musllinux_1_1_x86_64.whl", hash = "sha256:0b87133777a3dbd1952f0874255a55d17c0da96c62d2156c49cf774720cf1d16", size = 28174544, upload-time = "2025-09-22T16:23:48.213Z" },
+]
+
+[[package]]
+name = "typing-extensions"
+version = "4.15.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/72/94/1a15dd82efb362ac84269196e94cf00f187f7ed21c242792a923cdb1c61f/typing_extensions-4.15.0.tar.gz", hash = "sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466", size = 109391, upload-time = "2025-08-25T13:49:26.313Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/18/67/36e9267722cc04a6b9f15c7f3441c2363321a3ea07da7ae0c0707beb2a9c/typing_extensions-4.15.0-py3-none-any.whl", hash = "sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548", size = 44614, upload-time = "2025-08-25T13:49:24.86Z" },
 ]
 
 [[package]]

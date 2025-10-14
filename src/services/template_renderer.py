@@ -7,9 +7,12 @@ class TemplateRenderer:
         template_dir = Path("src/template")
         self.env = Environment(loader=FileSystemLoader(str(template_dir)))
     
+    def render(self, template_path, context):
+        template = self.env.get_template(template_path)
+        return template.render(context)
+    
     def render_gallery(self, photo_data):
-        template = self.env.get_template("gallery.j2.html")
-        return template.render(photo_data)
+        return self.render("gallery.j2.html", photo_data)
     
     def save_html(self, html_content, output_path):
         output_file = Path(output_path)

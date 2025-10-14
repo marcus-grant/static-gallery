@@ -1,0 +1,7 @@
+<div class="aspect-square cursor-pointer" @click="openModal('{{ photo.filename }}')">
+  <img 
+    src="{{ photo.thumb_url }}" 
+    alt="Wedding photo {{ photo.filename }}"
+    class="w-full h-full object-cover rounded-lg hover:shadow-lg transition-shadow"
+  />
+</div>
