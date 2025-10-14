@@ -156,7 +156,7 @@ src/template/
 -> gallery.j2.html          (Main gallery page extending base)
 -> components/
    -> photo-grid.j2.html    (Grid container with ALL photos)
-   -> photo-cell.j2.html    (Clickable photo thumbnail)
+   -> photo-cell.j2.html    (Clickable photo thumbnail) [x]
    -> photo-modal.j2.html   (Photo preview modal with nav zones)
    -> navbar.j2.html        (Navigation component)
 
@@ -166,6 +166,19 @@ static/
 -> css/
    -> custom.css            (Modal styles, navigation zones)
 ```
+
+#### Photo Modal Navigation Design
+
+- **Modal Size**: 80% viewport (keeping 20% for dismiss area)
+- **Navigation Zones**: 
+  - Left 25% of modal: Previous photo
+  - Right 25% of modal: Next photo  
+  - Middle 50%: No action (view photo)
+- **Navigation Features**:
+  - Wrap-around navigation (first ↔ last)
+  - ESC key to close modal
+  - Click backdrop (20% area) to close
+- **Implementation**: Alpine.js with click zones and keyboard handlers
 
 #### Site Generation Configuration
 
