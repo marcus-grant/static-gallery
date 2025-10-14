@@ -4,7 +4,7 @@ from pathlib import Path
 
 class TemplateRenderer:
     def __init__(self):
-        template_dir = Path("templates")
+        template_dir = Path("src/template")
         self.env = Environment(loader=FileSystemLoader(str(template_dir)))
     
     def render_gallery(self, photo_data):

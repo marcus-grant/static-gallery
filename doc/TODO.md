@@ -214,29 +214,33 @@ python manage.py deploy
 
 **Deliverable**: Custom HTML generation with Jinja2 templates **[NEXT]**
 
-#### Acceptance Criteria
+#### MVP Acceptance Criteria
 
-- [ ] Custom Jinja2 templates with Tailwind CSS + AlpineJS
-- [ ] Gallery page template with photo grid
-- [ ] JSON API endpoints from cached photo data for AlpineJS frontend
+- [ ] Component-based Jinja2 templates with Tailwind CSS + AlpineJS
+- [ ] Gallery page template with complete photo grid (all photos rendered server-side)
+- [ ] Photo preview modal with navigation (click left/right 25% areas)
 - [ ] Basic navbar and site structure
 - [ ] SEO configuration with noindex
 - [ ] Mobile-responsive design
+- [ ] TDD approach with BeautifulSoup4 template testing
 
 #### Template Structure Required
 
 ```
-templates/
--> base.j2.html             (Tailwind + AlpineJS setup)
--> gallery.j2.html          (Photo grid template)
--> index.j2.html            (Landing page)
--> navbar.j2.html           (Navigation component)
+src/template/
+-> base.j2.html             (Base layout with head, scripts)
+-> gallery.j2.html          (Main gallery page extending base)
+-> components/
+   -> photo-grid.j2.html    (Grid container with ALL photos)
+   -> photo-cell.j2.html    (Clickable photo thumbnail)
+   -> photo-modal.j2.html   (Photo preview modal with nav zones)
+   -> navbar.j2.html        (Navigation component)
 
 static/
--> css/
 -> js/
-   -> gallery.js            (AlpineJS gallery logic)
--> img/                     (Site assets - logos, icons)
+   -> gallery.js            (AlpineJS for modal + navigation)
+-> css/
+   -> custom.css            (Modal styles, navigation zones)
 ```
 
 #### Site Generation Configuration
@@ -455,20 +459,36 @@ See "Upload to Public Gallery Bucket" section above for details.
 - [ ] Integration tests for Hetzner API
 - [ ] Cross-browser testing (Chrome, Safari, Firefox)
 - [ ] Mobile device testing
-- [ ] Performance testing under load
+- [ ] Template tests with BeautifulSoup4
 - [ ] User acceptance testing with family members
 
 #### Test Categories Required
 
 ```
-tests/
--> test_exif_processing.py
--> test_filename_generation.py
--> test_file_operations.py
--> test_hetzner_integration.py
--> test_static_generation.py
--> test_frontend_functionality.py
+test/
+-> services/               (Service layer tests)
+-> template/               (Template structure tests with BeautifulSoup4)
+   -> test_base_template.py
+   -> test_gallery_template.py
+   -> test_photo_components.py
+-> command/                (Command tests)
+-> integration/            (API integration tests)
 ```
+
+---
+
+### Pre-Deployment Performance Testing
+
+**Deliverable**: Performance comparison between static and progressive loading approaches
+
+#### Acceptance Criteria
+
+- [ ] Static vs Progressive Loading Comparison: Build both versions side-by-side
+- [ ] Performance Metrics: Lighthouse scores, page load times, Time to First Contentful Paint
+- [ ] Network Analysis: Total payload size comparison, number of requests
+- [ ] User Experience Testing: Perceived performance on different connection speeds
+- [ ] Testing Framework: Automated performance testing with Playwright or similar
+- [ ] Performance report documenting findings and recommendations
 
 ---
 
@@ -491,6 +511,34 @@ tests/
 - Individual photo downloads complete reliably
 - Site works on mobile devices without significant issues
 - Older family members can successfully select and download photos
+
+---
+
+## Post-Deployment Enhancements
+
+### Dynamic Loading & Performance
+
+**Deliverable**: Progressive loading optimization for large photo collections
+
+#### Acceptance Criteria
+
+- [ ] **Infinite Scroll Loading**: Split photo rendering between initial batch (server-side) and progressive loading (JS)
+- [ ] **Lazy Loading**: Progressive image loading optimization
+- [ ] **Performance Monitoring**: Real-world performance metrics collection
+- [ ] **BunnyCDN Analytics Integration**: Parse CDN access logs for photo popularity tracking
+- [ ] **Popularity-Based Ordering**: Sort photos by download frequency from CDN logs
+
+### Interactive Photo Selection
+
+**Deliverable**: Multi-select download functionality
+
+#### Acceptance Criteria
+
+- [ ] **Checkbox Selection**: Add checkboxes to photo cells for multi-select
+- [ ] **Selection Controls**: Select all/none buttons, selection counter
+- [ ] **Download Functionality**: Batch download of selected photos (web/full resolution)
+- [ ] **Selection State Management**: Persistent selection across page interactions
+- [ ] **Selection Bar**: Bottom overlay showing selected count and actions
 
 ---
 
