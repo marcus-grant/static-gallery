@@ -212,7 +212,7 @@ python manage.py deploy
 
 ### Static Site Generation
 
-**Deliverable**: Custom HTML generation with Jinja2 templates **[NEXT PRIORITY]**
+**Deliverable**: Custom HTML generation with Jinja2 templates **[NEXT]**
 
 #### Acceptance Criteria
 
@@ -292,7 +292,7 @@ STATIC_PATHS = ['css', 'js', 'img']
    - Generates HTML files to output directory [x]
    - Separate template tests for HTML content validation
 
-5. **Static asset service** (test/services/test_static_assets.py) **[NEXT]**
+5. **Static asset service** (test/services/test_static_assets.py) [x]
    - Copies CSS/JS files to output
    - Generates photos.json API endpoint
 
