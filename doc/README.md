@@ -26,7 +26,12 @@ working, acceptable user experience deployed quickly.
 - **[Changelog](./CHANGELOG.md)** - Record of completed features and major 
   changes
 
-### Services & Implementation
+### Command-Line Interface
+- **[Command Documentation](./command/README.md)** - Complete guide to all CLI 
+  commands including usage examples, options, and workflows
+
+### Architecture & Implementation  
+- **[Static Site Generation](./architecture/static-site-generation.md)** - Template system, build process, and development server
 - **[UUID Service](./services/uuid_service.md)** - Photo UUID generation service 
   with RFC 9562 UUIDv7, Base32 encoding, and chronological ordering
 

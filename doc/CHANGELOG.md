@@ -16,10 +16,43 @@
 - **PhotoMetadataService**: Fixed URL generation to check for WebP thumbnails first
 - **Dev server routing**: /photos/* now correctly serves from prod/pics/*
 
-### Pre-Deploy Task Planning
-- **Gallery ordering**: Identified photo chronological ordering issue  
-- **Filename compatibility**: Planned UTC offset + sign replacement
-- **Thumbnail format**: Planned WebP regeneration using process-photos command
+### Gallery Chronological Ordering
+- **PhotoMetadataService fix**: Updated regex pattern to match new filename format (collection-YYYYMMDDTHHMMSS-camera-counter.jpg)
+- **Filename sorting**: Added chronological sorting to maintain photo order in gallery
+- **Field mapping**: Changed 'sequence' to 'counter' to match base32 format
+- **Gallery display**: Fixed photo ordering in static gallery generation
+
+### Static Site Templates
+- **Base template**: Created base.j2.html with navbar, proper HTML structure
+- **Landing page**: Added index.j2.html with Christine & Marcus wedding info, privacy notice
+- **Navigation**: Implemented navbar with Home/Gallery links and photo count
+- **Build integration**: Updated build command to generate both index.html and gallery.html
+- **Template comments**: Added HTML comments showing component boundaries for debugging
+
+### Collection Analysis Command
+- **collection-stats command**: New CLI tool for analyzing photo collections
+- **Time analysis**: Full timeline analysis (10 hours), timezone extraction from EXIF
+- **Camera detection**: Identified 2 cameras (5W/4F prefixes) across 645 photos
+- **File size stats**: Storage analysis for full/web/thumbnail collections
+- **Timezone discovery**: Found 4-hour systematic offset in camera timestamps
+
+### EXIF Timezone Support
+- **TDD implementation**: Added timezone extraction tests to EXIF service
+- **get_timezone_info function**: Extracts OffsetTimeOriginal/OffsetTimeDigitized from EXIF
+- **Piexif integration**: Added timezone EXIF tags to test fixture
+- **Collection analysis**: Integrated timezone info into collection-stats output
+
+### Documentation System
+- **Command documentation**: Created doc/command/ directory with comprehensive CLI docs
+- **collection-stats docs**: Detailed usage, examples, troubleshooting guide
+- **Documentation index**: Updated doc/README.md to reference command documentation
+- **Usage examples**: Development vs production workflows documented
+
+### TODO Reorganization
+- **JavaScript deferral**: Moved modal and interactive features to post-deployment
+- **Deployment priority**: Updated TODO to prioritize static gallery and deployment pipeline
+- **EXIF correction planning**: Documented timezone correction system for post-deploy
+- **Storage architecture**: Defined archive vs production bucket separation
 
 ## 2025-10-14
 

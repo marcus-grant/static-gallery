@@ -134,148 +134,12 @@ python manage.py deploy
 
 ## Development Tasks & Specifications
 
-### Static Site Generation
+### Static Site Generation **[COMPLETED]**
 
-**Deliverable**: Custom HTML generation with Jinja2 templates **[NEXT]**
+**Deliverable**: Static HTML gallery with complete functionality
 
-#### MVP Acceptance Criteria
+See `doc/architecture/static-site-generation.md` for implementation details.
 
-- [x] Component-based Jinja2 templates with Tailwind CSS + AlpineJS (basic setup complete)
-- [ ] Gallery page template with complete photo grid (all photos rendered server-side)
-- [ ] Photo preview modal with navigation (click left/right 25% areas)
-- [ ] Basic navbar and site structure
-- [x] SEO configuration with noindex
-- [ ] Mobile-responsive design
-- [x] TDD approach with BeautifulSoup4 template testing
-
-#### Template Structure Required
-
-```
-src/template/
--> base.j2.html             (Base layout with head, scripts)
--> gallery.j2.html          (Main gallery page extending base)
--> components/
-   -> photo-grid.j2.html    (Grid container with ALL photos)
-   -> photo-cell.j2.html    (Clickable photo thumbnail) [x]
-   -> photo-modal.j2.html   (Photo preview modal with nav zones)
-   -> navbar.j2.html        (Navigation component)
-
-static/
--> js/
-   -> gallery.js            (AlpineJS for modal + navigation)
--> css/
-   -> custom.css            (Modal styles, navigation zones)
-```
-
-#### Photo Modal Navigation Design
-
-- **Modal Size**: 80% viewport (keeping 20% for dismiss area)
-- **Navigation Zones**: 
-  - Left 25% of modal: Previous photo
-  - Right 25% of modal: Next photo  
-  - Middle 50%: No action (view photo)
-- **Navigation Features**:
-  - Wrap-around navigation (first ↔ last)
-  - ESC key to close modal
-  - Click backdrop (20% area) to close
-- **Implementation**: Alpine.js with click zones and keyboard handlers
-
-#### Development Server with Hot Reload
-
-**Deliverable**: Local development server for template development **[MOSTLY COMPLETE]**
-
-##### Requirements
-- [x] Hot-reloading dev server that watches template files
-- [x] Automatically rebuilds on template/CSS/JS changes  
-- [x] Serves from prod/site/ directory
-- [x] Root path (/) returns 404 without index.html
-- [x] /gallery path serves gallery.html
-- [x] Command: `python manage.py serve --reload`
-- [x] Photo serving from /photos/* → prod/pics/*
-- [x] Debug photo display issues (images not loading)
-- [ ] Live browser refresh on changes
-
-##### Implementation Status
-- ✅ TDD tests for dev server (14 tests passing)
-- ✅ Custom HTTP handler with routing
-- ✅ File watcher with watchdog library
-- ✅ Fixed build command template path (src/template/)
-- ✅ Fixed PhotoMetadataService URL generation
-- ✅ Photo serving implementation (supports multiple formats)
-- 🔧 **Pre-Deploy Tasks** (before deployment):
-  - [ ] Fix chronological photo ordering in gallery
-  - [x] Replace '+' sign in UTC offset filenames for cross-platform compatibility
-  - [ ] Regenerate thumbnails as WebP format using process-photos command
-- ⏳ Browser auto-refresh (WebSocket/SSE) - low priority
-
-#### Site Generation Configuration
-
-```python
-# Custom site generator settings
-TEMPLATE_DIR = 'templates/'
-STATIC_DIR = 'static/'
-OUTPUT_DIR = 'output/'
-
-# Template configuration
-TEMPLATES = {
-    'index.j2.html': 'index.html',
-    'gallery.j2.html': 'gallery.html',
-}
-
-# Generate JSON API responses from cached photo metadata
-PHOTO_METADATA_SOURCE = 'json'  # Photo data served from JSON cache
-STATIC_PATHS = ['css', 'js', 'img']
-```
-
-#### Gallery Template Requirements
-
-- Thumbnail grid with infinite scroll
-- Checkbox selection for photos
-- Download buttons (web/full resolution)
-- Select all/none functionality
-- AlpineJS state management
-
-
----
-
-### Frontend Functionality
-
-**Deliverable**: Interactive photo gallery with AlpineJS
-
-#### Acceptance Criteria
-
-- [ ] Photo grid displays thumbnails correctly
-- [ ] Infinite scroll loads photos progressively
-- [ ] Checkbox selection updates state
-- [ ] Download functionality triggers individual file downloads
-- [ ] Select all/none buttons work correctly
-- [ ] Mobile-responsive interaction
-
-#### AlpineJS Component Structure
-
-```javascript
-Alpine.data('photoGallery', () => ({
-    photos: [],
-    selectedPhotos: [],
-    loadedCount: 0,
-    batchSize: 20,
-    
-    // Methods
-    loadMorePhotos(),
-    togglePhoto(photoId),
-    selectAll(),
-    selectNone(),
-    downloadSelected(resolution)
-}))
-```
-
-#### Frontend Features Required
-
-- Lazy loading of thumbnails
-- Visual feedback for selected photos
-- Download progress indication
-- Error handling for failed downloads
-- Keyboard navigation support
 
 ---
 
@@ -303,7 +167,7 @@ Purge: Manual trigger capability
 
 ---
 
-### Build & Deployment Pipeline
+### Build & Deployment Pipeline **[NEXT]**
 
 **Deliverable**: Automated build and deployment scripts
 
@@ -362,20 +226,31 @@ See "Upload to Public Gallery Bucket" section above for details.
 
 ##### deploy Command
 
-**Purpose**: Deploy static site to production hosting
+**Purpose**: Deploy complete gallery (photos + static site) to production hosting
 
 **CLI Options**:
 - `--source`, `-s`: Override OUTPUT_DIR
-- `--target`: Deployment target (s3-static, netlify, etc.)
 - `--dry-run`: Show deployment plan without executing
 - `--invalidate-cdn`: Trigger CDN cache purge
+- `--photos-only`: Upload only photos/metadata (skip static site)
+- `--site-only`: Upload only static site files (skip photos)
+
+**Storage Architecture**:
+- **Archive Bucket**: Original photographer files (read-only, never modified)
+- **Production Bucket**: Processed photos + static site for public access
+  - `/photos/full/` - Full resolution with corrected EXIF
+  - `/photos/web/` - Web-optimized with corrected EXIF  
+  - `/photos/thumb/` - WebP thumbnails
+  - `/metadata.json` - Photo metadata with corrected timestamps
+  - `/index.html`, `/gallery.html` - Static site files
 
 **Deployment Steps**:
-1. Validate deployment configuration
-2. Upload static files to hosting target
-3. Update DNS/CDN configuration if needed
-4. Verify deployment with smoke tests
-5. Output production URLs
+1. Process photos with timestamp corrections and EXIF updates
+2. Upload corrected photos to production bucket
+3. Upload static site files to production bucket
+4. Trigger CDN cache invalidation
+5. Verify deployment with smoke tests
+6. Output production URLs
 
 ---
 
@@ -446,6 +321,49 @@ test/
 
 ## Post-Deployment Enhancements
 
+### Frontend Functionality **[MOVED FROM PRE-DEPLOY - FIRST PRIORITY]**
+
+**Deliverable**: Interactive photo gallery with AlpineJS
+
+#### Pre-requisite: Fix Hot Reload Bug
+
+**IMPORTANT**: The serve command's hot reloading server often fails to hot reload on template changes. This will become frustrating during complex frontend development. Fix this bug before implementing any other frontend changes.
+
+#### Acceptance Criteria
+
+- [ ] Photo grid displays thumbnails correctly
+- [ ] Infinite scroll loads photos progressively
+- [ ] Checkbox selection updates state
+- [ ] Download functionality triggers individual file downloads
+- [ ] Select all/none buttons work correctly
+- [ ] Mobile-responsive interaction
+
+#### AlpineJS Component Structure
+
+```javascript
+Alpine.data('photoGallery', () => ({
+    photos: [],
+    selectedPhotos: [],
+    loadedCount: 0,
+    batchSize: 20,
+    
+    // Methods
+    loadMorePhotos(),
+    togglePhoto(photoId),
+    selectAll(),
+    selectNone(),
+    downloadSelected(resolution)
+}))
+```
+
+#### Frontend Features Required
+
+- Lazy loading of thumbnails
+- Visual feedback for selected photos
+- Download progress indication
+- Error handling for failed downloads
+- Keyboard navigation support
+
 ### Dynamic Loading & Performance
 
 **Deliverable**: Progressive loading optimization for large photo collections
@@ -457,6 +375,49 @@ test/
 - [ ] **Performance Monitoring**: Real-world performance metrics collection
 - [ ] **BunnyCDN Analytics Integration**: Parse CDN access logs for photo popularity tracking
 - [ ] **Popularity-Based Ordering**: Sort photos by download frequency from CDN logs
+
+### EXIF Timestamp Correction **[POST-DEPLOY PRIORITY]**
+
+**Deliverable**: Timezone correction system for camera clock errors
+
+#### Problem Identified
+- Camera EXIF shows `+00:00` (UTC) timezone but timestamps are 4 hours ahead of expected UTC
+- Ceremony at 4:00 PM Swedish time (UTC+2) should be 2:00 PM UTC, but photos show 6:10 PM
+- All 645 photos have systematic 4-hour offset from expected UTC timing
+
+#### Acceptance Criteria
+- [ ] **Settings-based offset**: Add `TIMESTAMP_OFFSET_HOURS` setting (e.g., `-4` hours)
+- [ ] **Processing integration**: Apply offset during `process-photos` command
+- [ ] **EXIF correction**: Modify EXIF data in production bucket copies
+  - Correct `DateTimeOriginal` to proper UTC time
+  - Set `OffsetTimeOriginal` to actual Swedish timezone (`+02:00`)
+  - Preserve original archive files (read-only)
+- [ ] **Upload detection**: Deploy command detects EXIF changes and re-uploads
+- [ ] **CDN invalidation**: Trigger cache refresh when photos change
+- [ ] **Documentation**: Log corrections applied for transparency
+
+#### Implementation Plan
+1. Add timezone offset setting to process-photos workflow
+2. Integrate EXIF correction into production bucket upload
+3. Test upload change detection and CDN invalidation
+4. Validate corrected timestamps work in external photo management software
+
+### Photo Modal Navigation **[MOVED FROM PRE-DEPLOY]**
+
+**Deliverable**: Interactive photo preview with navigation
+
+#### Photo Modal Navigation Design
+
+- **Modal Size**: 80% viewport (keeping 20% for dismiss area)
+- **Navigation Zones**: 
+  - Left 25% of modal: Previous photo
+  - Right 25% of modal: Next photo  
+  - Middle 50%: No action (view photo)
+- **Navigation Features**:
+  - Wrap-around navigation (first ↔ last)
+  - ESC key to close modal
+  - Click backdrop (20% area) to close
+- **Implementation**: Alpine.js with click zones and keyboard handlers
 
 ### Interactive Photo Selection
 
