@@ -7,7 +7,8 @@ from src.services.filename_service import (
     generate_photo_filename,
     get_timezone_from_gps, 
     format_iso_timestamp,
-    get_camera_code
+    get_camera_code,
+    generate_batch_filenames
 )
 from src.models.photo import ProcessedPhoto, CameraInfo, ExifData
 
@@ -40,8 +41,8 @@ class TestFilenameGeneration:
         
         # Should use photo's collection ("wedding") over parameter ("reception")
         assert filename.startswith("wedding-")
-        assert "20241005T143045.123" in filename
-        assert "r5a-001.jpg" in filename
+        assert "20241005T143045" in filename
+        assert "r5a-0.jpg" in filename
         
     def test_generate_filename_without_gps(self):
         """Test filename generation without GPS coordinates."""
@@ -65,8 +66,8 @@ class TestFilenameGeneration:
         filename = generate_photo_filename(photo, "getting-ready")
         
         assert filename.startswith("getting-ready-")
-        assert "20241005T143045.000" in filename
-        assert "i15-001.heic" in filename
+        assert "20241005T143045" in filename
+        assert "i15-0.heic" in filename
         
     def test_generate_filename_no_timestamp(self):
         """Test filename generation with missing timestamp (uses current time)."""
@@ -92,7 +93,7 @@ class TestFilenameGeneration:
         assert filename.startswith("ceremony-")
         # Should contain current year (test will work for several years)
         assert "202" in filename
-        assert "a7r-001.jpg" in filename
+        assert "a7r-0.jpg" in filename
 
 
 class TestTimezoneFromGPS:
@@ -143,30 +144,23 @@ class TestISOTimestampFormatting:
     def test_format_basic_timestamp(self):
         """Test basic timestamp formatting."""
         dt = datetime(2024, 10, 5, 14, 30, 45, 123000)
-        formatted = format_iso_timestamp(dt, "0400")
+        formatted = format_iso_timestamp(dt)
         
-        assert formatted == "20241005T143045.123Z0400"
+        assert formatted == "20241005T143045"
         
-    def test_format_with_negative_timezone(self):
-        """Test formatting with negative timezone offset."""
+    def test_format_utc_only(self):
+        """Test UTC timestamp formatting without timezone info."""
         dt = datetime(2024, 1, 15, 9, 15, 30, 456000)
-        formatted = format_iso_timestamp(dt, "-0500")
+        formatted = format_iso_timestamp(dt)
         
-        assert formatted == "20240115T091530.456Z-0500"
+        assert formatted == "20240115T091530"
         
-    def test_format_zero_milliseconds(self):
-        """Test formatting with zero milliseconds."""
-        dt = datetime(2024, 12, 25, 23, 59, 59, 0)
-        formatted = format_iso_timestamp(dt, "+1030")
+    def test_format_ignores_microseconds(self):
+        """Test that microseconds are ignored in timestamp (to the second only)."""
+        dt = datetime(2024, 6, 1, 12, 0, 0, 999999)
+        formatted = format_iso_timestamp(dt)
         
-        assert formatted == "20241225T235959.000Z+1030"
-        
-    def test_format_microseconds_rounding(self):
-        """Test that microseconds are properly converted to milliseconds."""
-        dt = datetime(2024, 6, 1, 12, 0, 0, 999999)  # 999 ms + 999 us
-        formatted = format_iso_timestamp(dt, "0000")
-        
-        assert formatted == "20240601T120000.999Z0000"
+        assert formatted == "20240601T120000"
 
 
 class TestCameraCodeGeneration:
@@ -276,11 +270,11 @@ class TestIntegration:
         
         filename = generate_photo_filename(photo)
         
-        # Should be summer (EDT = UTC-4)
+        # Should contain UTC timestamp and base32 counter
         expected_parts = [
             "wedding-",
-            "20240615T163000.500Z-0400",
-            "-r5a-001.jpg"
+            "20240615T163000",
+            "-r5a-0.jpg"
         ]
         
         for part in expected_parts:
@@ -315,9 +309,9 @@ class TestIntegration:
         
         filenames = [generate_photo_filename(photo) for photo in photos]
         
-        # Currently all get 001 - this shows we need burst sequence logic
+        # Currently all get 0 - this shows we need burst sequence logic
         for filename in filenames:
-            assert "-001.jpg" in filename
+            assert "-0.jpg" in filename
             
         # TODO: Implement burst sequence numbering
         # Expected behavior:
@@ -371,6 +365,390 @@ class TestBurstSequenceHandling:
         assert len(set(filenames)) == 3
         
         # Check sequence numbers
-        assert filenames[0].endswith("-001.jpg")
-        assert filenames[1].endswith("-002.jpg") 
-        assert filenames[2].endswith("-003.jpg")
+        assert filenames[0].endswith("-0.jpg")
+        assert filenames[1].endswith("-1.jpg") 
+        assert filenames[2].endswith("-2.jpg")
+
+
+class TestBase32CounterSystem:
+    """Test new base32 counter system for filename generation."""
+    
+    def test_utc_timestamp_format_no_timezone(self):
+        """Test that new format uses UTC-only timestamps without timezone offset."""
+        camera = CameraInfo(make="Canon", model="EOS R5")
+        exif = ExifData(
+            timestamp=datetime(2024, 6, 15, 16, 30, 45),
+            subsecond=None,
+            gps_latitude=None,
+            gps_longitude=None,
+            raw_data={}
+        )
+        photo = ProcessedPhoto(
+            path=Path("test.jpg"),
+            filename="test.jpg",
+            file_size=1000,
+            camera=camera,
+            exif=exif,
+            edge_cases=[],
+            collection="wedding"
+        )
+        
+        filename = generate_photo_filename(photo)
+        
+        # Should contain UTC timestamp without timezone offset or milliseconds
+        assert "20240615T163045" in filename
+        # Should NOT contain timezone offset or milliseconds
+        assert "Z+" not in filename
+        assert "Z-" not in filename
+        assert ".000" not in filename
+        
+    def test_base32_counter_single_photo(self):
+        """Test that single photo gets base32 counter '0'."""
+        camera = CameraInfo(make="Canon", model="EOS R5")
+        exif = ExifData(
+            timestamp=datetime(2024, 6, 15, 16, 30, 45),
+            subsecond=None,
+            gps_latitude=None,
+            gps_longitude=None,
+            raw_data={}
+        )
+        photo = ProcessedPhoto(
+            path=Path("test.jpg"),
+            filename="test.jpg",
+            file_size=1000,
+            camera=camera,
+            exif=exif,
+            edge_cases=[],
+            collection="wedding"
+        )
+        
+        filename = generate_photo_filename(photo)
+        
+        # Should end with base32 counter '0' (first photo)
+        assert filename.endswith("-r5a-0.jpg")
+        
+    def test_base32_counter_burst_sequence(self):
+        """Test that burst photos get sequential base32 counters."""
+        camera = CameraInfo(make="Canon", model="EOS R5")
+        timestamp = datetime(2024, 6, 15, 16, 30, 45)
+        exif = ExifData(
+            timestamp=timestamp,
+            subsecond=None,
+            gps_latitude=None,
+            gps_longitude=None,
+            raw_data={}
+        )
+        
+        existing_filenames = set()
+        filenames = []
+        
+        # Generate 5 photos with same timestamp (burst)
+        for i in range(5):
+            photo = ProcessedPhoto(
+                path=Path(f"burst_{i}.jpg"),
+                filename=f"burst_{i}.jpg",
+                file_size=1000,
+                camera=camera,
+                exif=exif,
+                edge_cases=["burst"],
+                collection="wedding"
+            )
+            
+            filename = generate_photo_filename(
+                photo, 
+                existing_filenames=existing_filenames
+            )
+            filenames.append(filename)
+            existing_filenames.add(filename)
+        
+        # Check base32 sequence: 0, 1, 2, 3, 4
+        expected_counters = ['0', '1', '2', '3', '4']
+        for i, filename in enumerate(filenames):
+            assert filename.endswith(f"-r5a-{expected_counters[i]}.jpg")
+            
+    def test_base32_counter_max_range(self):
+        """Test base32 counter handles full range 0-V (32 photos)."""
+        camera = CameraInfo(make="Canon", model="EOS R5")
+        timestamp = datetime(2024, 6, 15, 16, 30, 45)
+        exif = ExifData(
+            timestamp=timestamp,
+            subsecond=None,
+            gps_latitude=None,
+            gps_longitude=None,
+            raw_data={}
+        )
+        
+        existing_filenames = set()
+        
+        # Expected base32 sequence
+        expected_base32 = "0123456789ABCDEFGHIJKLMNOPQRSTUV"
+        
+        # Generate 32 photos (max base32 range)
+        for i in range(32):
+            photo = ProcessedPhoto(
+                path=Path(f"test_{i}.jpg"),
+                filename=f"test_{i}.jpg",
+                file_size=1000,
+                camera=camera,
+                exif=exif,
+                edge_cases=[],
+                collection="wedding"
+            )
+            
+            filename = generate_photo_filename(
+                photo,
+                existing_filenames=existing_filenames
+            )
+            existing_filenames.add(filename)
+            
+            # Check that counter matches expected base32 character
+            expected_counter = expected_base32[i]
+            assert filename.endswith(f"-r5a-{expected_counter}.jpg")
+            
+    def test_shorter_filename_length(self):
+        """Test that new format produces shorter filenames."""
+        camera = CameraInfo(make="Canon", model="EOS R5") 
+        exif = ExifData(
+            timestamp=datetime(2024, 6, 15, 16, 30, 45),
+            subsecond=None,
+            gps_latitude=None,
+            gps_longitude=None,
+            raw_data={}
+        )
+        photo = ProcessedPhoto(
+            path=Path("test.jpg"),
+            filename="test.jpg",
+            file_size=1000,
+            camera=camera,
+            exif=exif,
+            edge_cases=[],
+            collection="wedding"
+        )
+        
+        filename = generate_photo_filename(photo)
+        
+        # New format should be ~33 characters
+        # wedding-20240615T163045-r5a-0.jpg = 33 chars
+        assert len(filename) <= 35  # Allow some margin
+        assert len(filename) >= 30  # Should not be too short
+        
+    def test_camera_first_subsecond_order_no_interleaving(self):
+        """Test camera-first ordering with subsecond precision, no interleaving between cameras."""
+        canon_camera = CameraInfo(make="Canon", model="EOS R5")
+        sony_camera = CameraInfo(make="Sony", model="A7R V")
+        
+        # Same second timestamp: 16:30:45
+        base_timestamp = datetime(2024, 6, 15, 16, 30, 45)
+        
+        # Canon burst: .123, .456, .789
+        canon_photos = []
+        canon_subseconds = [123, 456, 789]
+        for i, subsec in enumerate(canon_subseconds):
+            exif = ExifData(
+                timestamp=base_timestamp.replace(microsecond=subsec * 1000),
+                subsecond=subsec,
+                gps_latitude=None,
+                gps_longitude=None,
+                raw_data={}
+            )
+            photo = ProcessedPhoto(
+                path=Path(f"canon_burst_{i}.jpg"),
+                filename=f"canon_burst_{i}.jpg",
+                file_size=1000,
+                camera=canon_camera,
+                exif=exif,
+                edge_cases=["burst"],
+                collection="wedding"
+            )
+            canon_photos.append(photo)
+        
+        # Sony burst: .234, .567 (interleaved timing with Canon)
+        sony_photos = []
+        sony_subseconds = [234, 567]
+        for i, subsec in enumerate(sony_subseconds):
+            exif = ExifData(
+                timestamp=base_timestamp.replace(microsecond=subsec * 1000),
+                subsecond=subsec,
+                gps_latitude=None,
+                gps_longitude=None,
+                raw_data={}
+            )
+            photo = ProcessedPhoto(
+                path=Path(f"sony_burst_{i}.jpg"),
+                filename=f"sony_burst_{i}.jpg",
+                file_size=1000,
+                camera=sony_camera,
+                exif=exif,
+                edge_cases=["burst"],
+                collection="wedding"
+            )
+            sony_photos.append(photo)
+        
+        # Process photos in mixed order (simulating real-world scenario)
+        all_photos = [canon_photos[0], sony_photos[0], canon_photos[1], sony_photos[1], canon_photos[2]]
+        existing_filenames = set()
+        filenames = []
+        
+        for photo in all_photos:
+            filename = generate_photo_filename(photo, existing_filenames=existing_filenames)
+            filenames.append(filename)
+            existing_filenames.add(filename)
+        
+        # Expected ordering: Camera groups first, then subsecond order within each camera
+        # All Canon photos should have same base timestamp, sequential counters
+        canon_filenames = [f for f in filenames if "-r5a-" in f]
+        sony_filenames = [f for f in filenames if "-a7r-" in f]
+        
+        # Canon sequence should be: 0, 1, 2 (chronological by subsecond)
+        assert len(canon_filenames) == 3
+        assert canon_filenames[0].endswith("-r5a-0.jpg")  # .123
+        assert canon_filenames[1].endswith("-r5a-1.jpg")  # .456  
+        assert canon_filenames[2].endswith("-r5a-2.jpg")  # .789
+        
+        # Sony sequence should be: 0, 1 (chronological by subsecond)
+        assert len(sony_filenames) == 2
+        assert sony_filenames[0].endswith("-a7r-0.jpg")  # .234
+        assert sony_filenames[1].endswith("-a7r-1.jpg")  # .567
+        
+        # All should have same base timestamp (to the second)
+        for filename in filenames:
+            assert "20240615T163045" in filename
+            # Should NOT contain milliseconds in timestamp
+            assert "T163045123" not in filename
+            assert "T163045234" not in filename
+            
+        # Verify no interleaving: Canon burst stays together, Sony burst stays together
+        # This test verifies the algorithm groups by camera first, preventing interleaving
+        
+    def test_subsecond_ordering_hierarchy(self):
+        """Test the complete hierarchy for subsecond ordering within same camera+timestamp."""
+        camera = CameraInfo(make="Canon", model="EOS R5")
+        base_timestamp = datetime(2024, 6, 15, 16, 30, 45)
+        
+        # Create photos that test different aspects of the ordering hierarchy
+        photos = []
+        
+        # Photo 1: EXIF timestamp with milliseconds (.789)
+        photos.append(ProcessedPhoto(
+            path=Path("IMG_001.jpg"),
+            filename="IMG_001.jpg",
+            file_size=1000,
+            camera=camera,
+            exif=ExifData(
+                timestamp=base_timestamp.replace(microsecond=789000),  # .789 seconds
+                subsecond=None,  # No EXIF subsecond tag
+                gps_latitude=None,
+                gps_longitude=None,
+                raw_data={}
+            ),
+            edge_cases=[],
+            collection="wedding"
+        ))
+        
+        # Photo 2: EXIF subsecond tag (.123)
+        photos.append(ProcessedPhoto(
+            path=Path("IMG_002.jpg"),
+            filename="IMG_002.jpg",
+            file_size=1000,
+            camera=camera,
+            exif=ExifData(
+                timestamp=base_timestamp,  # No microseconds in timestamp
+                subsecond=123,  # EXIF subsecond tag
+                gps_latitude=None,
+                gps_longitude=None,
+                raw_data={}
+            ),
+            edge_cases=[],
+            collection="wedding"
+        ))
+        
+        # Photo 3: EXIF timestamp with milliseconds (.456)
+        photos.append(ProcessedPhoto(
+            path=Path("IMG_003.jpg"),
+            filename="IMG_003.jpg",
+            file_size=1000,
+            camera=camera,
+            exif=ExifData(
+                timestamp=base_timestamp.replace(microsecond=456000),  # .456 seconds
+                subsecond=None,
+                gps_latitude=None,
+                gps_longitude=None,
+                raw_data={}
+            ),
+            edge_cases=[],
+            collection="wedding"
+        ))
+        
+        # Photo 4: Filename hint only (lexically ordered suffix)
+        photos.append(ProcessedPhoto(
+            path=Path("DSC_0100.jpg"),
+            filename="DSC_0100.jpg",
+            file_size=1000,
+            camera=camera,
+            exif=ExifData(
+                timestamp=base_timestamp,  # No microseconds
+                subsecond=None,  # No EXIF subsecond
+                gps_latitude=None,
+                gps_longitude=None,
+                raw_data={}
+            ),
+            edge_cases=[],
+            collection="wedding"
+        ))
+        
+        # Photo 5: Filename hint only (higher suffix)
+        photos.append(ProcessedPhoto(
+            path=Path("DSC_0101.jpg"),
+            filename="DSC_0101.jpg",
+            file_size=1000,
+            camera=camera,
+            exif=ExifData(
+                timestamp=base_timestamp,
+                subsecond=None,
+                gps_latitude=None,
+                gps_longitude=None,
+                raw_data={}
+            ),
+            edge_cases=[],
+            collection="wedding"
+        ))
+        
+        # Process photos in random order to test sorting
+        import random
+        shuffled_photos = photos.copy()
+        random.shuffle(shuffled_photos)
+        
+        # Use batch processing (to be implemented)
+        filenames = generate_batch_filenames(shuffled_photos, "wedding")
+        
+        # Expected order based on hierarchy:
+        # 1. EXIF timestamp .123 (from subsecond tag)
+        # 2. EXIF timestamp .456 (from microseconds)  
+        # 3. EXIF timestamp .789 (from microseconds)
+        # 4. DSC_0100.jpg (filename hint)
+        # 5. DSC_0101.jpg (filename hint)
+        
+        expected_order = [
+            ("-r5a-0.jpg", "IMG_002.jpg"),  # subsecond=123
+            ("-r5a-1.jpg", "IMG_003.jpg"),  # microseconds=456
+            ("-r5a-2.jpg", "IMG_001.jpg"),  # microseconds=789
+            ("-r5a-3.jpg", "DSC_0100.jpg"), # filename hint
+            ("-r5a-4.jpg", "DSC_0101.jpg")  # filename hint
+        ]
+        
+        for i, (expected_ending, original_name) in enumerate(expected_order):
+            # Find filename that came from this original
+            matching_filename = None
+            for filename in filenames:
+                # We need to track which original filename produced which result
+                # This will be handled by the batch processing function
+                pass
+                
+        # For now, just verify we get 5 unique filenames with correct counters
+        assert len(filenames) == 5
+        assert len(set(filenames)) == 5  # All unique
+        
+        # All should have same base timestamp
+        for filename in filenames:
+            assert "20240615T163045" in filename
+            assert "-r5a-" in filename

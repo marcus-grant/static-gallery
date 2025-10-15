@@ -45,3 +45,46 @@
 - Support for different output formats and compression settings
 - Batch processing for large collections
 - Note: Currently not needed as photographer provides pre-optimized web versions
+
+## Configurable Filename Counter System
+
+**Current**: Hardcoded single lexical base32 character (1-32 photos per timestamp+camera)
+
+**Future Settings**:
+- `FILENAME_COUNTER_BASE`: decimal | hex | base32
+- `FILENAME_COUNTER_DIGITS`: 1-4 digits
+- `FILENAME_COUNTER_LEXICAL_ORDER`: true | false
+
+**Base Options**:
+- **Decimal** (0-9): 10^n combinations
+  - 1 digit: 10 photos (0-9)
+  - 2 digits: 100 photos (00-99)
+  - 3 digits: 1,000 photos (000-999)
+  
+- **Hex** (0-9A-F): 16^n combinations  
+  - 1 digit: 16 photos (0-F)
+  - 2 digits: 256 photos (00-FF)
+  - 3 digits: 4,096 photos (000-FFF)
+  
+- **Base32** (0-9A-V): 32^n combinations
+  - 1 digit: 32 photos (0-V) ← current default
+  - 2 digits: 1,024 photos (00-VV)
+  - 3 digits: 32,768 photos (000-VVV)
+
+**Use case**: High-speed burst photography or large-scale event photography requiring more than 32 photos with identical timestamps per camera.
+
+## Enhanced Subsecond Ordering
+
+**Current**: Comprehensive hierarchy for same-timestamp photos:
+1. EXIF timestamp microseconds
+2. EXIF subsecond tag  
+3. Original filename sequence hints
+4. Original filename lexical order
+5. Filesystem creation time
+
+**Future Enhancements**:
+- **EXIF Sequence Metadata**: Parse camera-specific sequence tags
+- **Burst Detection**: Identify and group burst sequences automatically
+- **Multi-Camera Sync**: Advanced synchronization for multiple cameras
+- **Time Drift Correction**: Detect and correct camera clock drift
+- **Manual Override**: Allow manual reordering of problematic sequences
