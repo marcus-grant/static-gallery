@@ -1,5 +1,47 @@
 # Galleria Changelog
 
+## 2025-10-15
+
+### Base32 Counter Filename System
+- **UTC normalization**: Replaced timezone offsets with UTC timestamps (removes + signs)
+- **Base32 counters**: Implemented lexical base32 counter (0-V) instead of 3-digit numbers
+- **Subsecond ordering**: Added hierarchy for same-timestamp photos using EXIF microseconds, subsecond tags, filename hints, and filesystem metadata
+- **Batch processing**: Camera-first grouping prevents burst sequence interleaving
+- **Filename optimization**: Reduced length from 47 to 33 characters (29% shorter)
+- **Cross-platform compatibility**: Eliminated filesystem-problematic characters
+
+### Development Server Photo Display
+- **Photo serving fix**: Fixed thumbnail format detection (JPG vs WebP)
+- **MIME type support**: Added proper content-type headers for .webp, .jpg, .jpeg, .png
+- **PhotoMetadataService**: Fixed URL generation to check for WebP thumbnails first
+- **Dev server routing**: /photos/* now correctly serves from prod/pics/*
+
+### Pre-Deploy Task Planning
+- **Gallery ordering**: Identified photo chronological ordering issue  
+- **Filename compatibility**: Planned UTC offset + sign replacement
+- **Thumbnail format**: Planned WebP regeneration using process-photos command
+
+## 2025-10-14
+
+### Hot-Reload Development Server
+- **TDD implementation**: 14 tests covering server functionality, routing, and file watching
+- **Custom HTTP handler**: /gallery route serves gallery.html, root returns 404 without index.html
+- **File watcher**: Auto-rebuild on template/CSS/JS changes using watchdog library
+- **Photo serving**: /photos/* routes map to prod/pics/* with proper MIME types
+- **Build integration**: Fixed template path from templates/ to src/template/
+
+### Photo Grid Component
+- **Component-based templates**: Created photo-grid.j2.html using photo-cell includes
+- **Grid responsiveness**: Configurable grid classes for different screen sizes
+- **Gallery integration**: Updated gallery.j2.html to use photo-grid component
+- **Template debugging**: Added debugging utilities for template development
+
+### Photo Cell Component  
+- **TDD template development**: Created photo-cell.j2.html with BeautifulSoup4 testing
+- **Interactive elements**: Click handlers for photo modal integration
+- **Responsive design**: Aspect-square containers with hover effects
+- **Image optimization**: Object-cover for consistent thumbnail display
+
 ## 2025-10-13
 
 ### Build Command Started with TDD Approach

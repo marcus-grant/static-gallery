@@ -182,7 +182,7 @@ static/
 
 #### Development Server with Hot Reload
 
-**Deliverable**: Local development server for template development **[IN PROGRESS]**
+**Deliverable**: Local development server for template development **[MOSTLY COMPLETE]**
 
 ##### Requirements
 - [x] Hot-reloading dev server that watches template files
@@ -192,7 +192,7 @@ static/
 - [x] /gallery path serves gallery.html
 - [x] Command: `python manage.py serve --reload`
 - [x] Photo serving from /photos/* → prod/pics/*
-- [ ] Debug photo display issues (images not loading)
+- [x] Debug photo display issues (images not loading)
 - [ ] Live browser refresh on changes
 
 ##### Implementation Status
@@ -204,7 +204,7 @@ static/
 - ✅ Photo serving implementation (supports multiple formats)
 - 🔧 **Pre-Deploy Tasks** (before deployment):
   - [ ] Fix chronological photo ordering in gallery
-  - [ ] Replace '+' sign in UTC offset filenames for cross-platform compatibility
+  - [x] Replace '+' sign in UTC offset filenames for cross-platform compatibility
   - [ ] Regenerate thumbnails as WebP format using process-photos command
 - ⏳ Browser auto-refresh (WebSocket/SSE) - low priority
 
@@ -235,41 +235,6 @@ STATIC_PATHS = ['css', 'js', 'img']
 - Select all/none functionality
 - AlpineJS state management
 
-#### Build Command Implementation Approach
-
-**TDD Strategy**: Strict separation of concerns
-- **Command module**: Terminal I/O only (status messages, error reporting)
-- **Service modules**: All actual work (directory creation, file generation, etc.)
-
-**Implementation Steps**:
-
-1. **Build command basics** (test/command/test_build.py) ✅
-   - Command exists and is callable
-   - Outputs status messages with keywords: build, site, generating
-
-2. **Site generator service** (test/services/test_site_generator.py) ✅
-   - Creates directory structure: prod/site/, prod/site/css/, prod/site/js/
-   - Reports what directories were created/already exist
-
-3. **Photo metadata service** (test/services/test_photo_metadata.py) [x]
-   - Scans prod/pics/ for processed photos
-   - Extracts metadata from chronological filenames
-   - Generates JSON structure for frontend
-
-4. **Template rendering service** (test/services/test_template_renderer.py)
-   - Renders Jinja2 templates with photo data [x]
-   - Generates HTML files to output directory [x]
-   - Separate template tests for HTML content validation
-
-5. **Static asset service** (test/services/test_static_assets.py) [x]
-   - Copies CSS/JS files to output
-   - Generates photos.json API endpoint
-
-**Key Principles**:
-- Command module ONLY handles terminal I/O
-- Each service has single responsibility
-- TDD: Write failing test → implement → refactor
-- No CLI options until MVP complete
 
 ---
 
