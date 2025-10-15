@@ -201,7 +201,11 @@ static/
 - ✅ File watcher with watchdog library
 - ✅ Fixed build command template path (src/template/)
 - ✅ Fixed PhotoMetadataService URL generation
-- 🚧 Photo serving implementation needs debugging
+- ✅ Photo serving implementation (supports multiple formats)
+- 🔧 **Pre-Deploy Tasks** (before deployment):
+  - [ ] Fix chronological photo ordering in gallery
+  - [ ] Replace '+' sign in UTC offset filenames for cross-platform compatibility
+  - [ ] Regenerate thumbnails as WebP format using process-photos command
 - ⏳ Browser auto-refresh (WebSocket/SSE) - low priority
 
 #### Site Generation Configuration
