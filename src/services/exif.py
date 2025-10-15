@@ -424,3 +424,36 @@ def extract_filename_sequence(filename: Union[Path, str]) -> int:
     
     # If no pattern matches, return 0
     return 0
+
+
+def get_timezone_info(photo_path: Union[Path, str]) -> Optional[str]:
+    """Extract timezone offset information from photo EXIF data.
+    
+    Args:
+        photo_path: Path to the photo file
+        
+    Returns:
+        Timezone offset string (e.g., "+02:00", "-05:00") if found, None otherwise
+    """
+    photo_path = Path(photo_path)
+    try:
+        with open(photo_path, "rb") as f:
+            tags = exifread.process_file(f, stop_tag="EXIF OffsetTimeDigitized")
+        
+        # Check for timezone offset tags in order of preference
+        timezone_tags = [
+            "EXIF OffsetTimeOriginal",    # Preferred - when photo was taken
+            "EXIF OffsetTimeDigitized",   # Fallback - when photo was digitized
+        ]
+        
+        for tag_name in timezone_tags:
+            if tag_name in tags:
+                timezone_str = str(tags[tag_name])
+                # Validate format (should be like "+02:00" or "-05:00")
+                if re.match(r'^[+-]\d{2}:\d{2}$', timezone_str):
+                    return timezone_str
+                    
+        return None
+        
+    except Exception:
+        return None

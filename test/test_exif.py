@@ -39,6 +39,14 @@ def create_photo_with_exif(tmp_path):
                 exif_dict["0th"][piexif.ImageIFD.Model] = (
                     value.encode() if isinstance(value, str) else value
                 )
+            elif tag_name == "OffsetTimeOriginal":
+                exif_dict["Exif"][piexif.ExifIFD.OffsetTimeOriginal] = (
+                    value.encode() if isinstance(value, str) else value
+                )
+            elif tag_name == "OffsetTimeDigitized":
+                exif_dict["Exif"][piexif.ExifIFD.OffsetTimeDigitized] = (
+                    value.encode() if isinstance(value, str) else value
+                )
             # Add more tag mappings as needed
 
         # Only create EXIF if tags were provided
@@ -127,6 +135,35 @@ class TestCombineDatetimeSubsecond:
         dt = datetime(2023, 9, 15, 14, 30, 45)
         result = exif.combine_datetime_subsecond(dt, None)
         assert result == dt
+
+
+class TestGetTimezoneInfo:
+    def test_extracts_timezone_offset_tag(self, create_photo_with_exif):
+        """Test extracts timezone offset from EXIF OffsetTimeOriginal tag"""
+        photo_path = create_photo_with_exif(OffsetTimeOriginal="+02:00")
+        result = exif.get_timezone_info(photo_path)
+        assert result == "+02:00"
+    
+    def test_extracts_timezone_offset_digitized(self, create_photo_with_exif):
+        """Test extracts timezone from OffsetTimeDigitized as fallback"""
+        photo_path = create_photo_with_exif(OffsetTimeDigitized="-05:00")
+        result = exif.get_timezone_info(photo_path)
+        assert result == "-05:00"
+    
+    def test_returns_none_when_no_timezone_info(self, create_photo_with_exif):
+        """Test returns None when no timezone information in EXIF"""
+        photo_path = create_photo_with_exif(DateTimeOriginal="2023:09:15 14:30:45")
+        result = exif.get_timezone_info(photo_path)
+        assert result is None
+    
+    def test_prefers_original_over_digitized(self, create_photo_with_exif):
+        """Test prefers OffsetTimeOriginal over OffsetTimeDigitized"""
+        photo_path = create_photo_with_exif(
+            OffsetTimeOriginal="+02:00",
+            OffsetTimeDigitized="-05:00"
+        )
+        result = exif.get_timezone_info(photo_path)
+        assert result == "+02:00"
     
     def test_handles_string_subsecond(self):
         """Test handles subsecond as string (from EXIF)"""
