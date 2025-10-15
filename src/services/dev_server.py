@@ -152,8 +152,10 @@ class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
                     self.send_response(200)
                     if photo_path.endswith('.webp'):
                         self.send_header('Content-type', 'image/webp')
-                    elif photo_path.endswith('.jpg'):
+                    elif photo_path.endswith('.jpg') or photo_path.endswith('.jpeg'):
                         self.send_header('Content-type', 'image/jpeg')
+                    elif photo_path.endswith('.png'):
+                        self.send_header('Content-type', 'image/png')
                     self.end_headers()
                     
                     with open(actual_file, 'rb') as f:

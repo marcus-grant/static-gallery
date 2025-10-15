@@ -35,12 +35,20 @@ class PhotoMetadataService:
             if metadata:
                 # Generate URLs for the photos
                 base_name = filename.replace('.jpg', '')
+                # Check if WebP thumbnail exists, otherwise fall back to JPEG
+                webp_thumb = f"{base_name}.webp"
+                thumb_path = Path("prod/pics/thumb") / webp_thumb
+                if thumb_path.exists():
+                    thumb_filename = webp_thumb
+                else:
+                    thumb_filename = filename
+                    
                 photo_data.append({
                     "filename": filename,
                     "timestamp": metadata["timestamp"],
                     "camera": metadata["camera"],
                     "sequence": metadata["sequence"],
-                    "thumb_url": f"/photos/thumb/{base_name}.webp",
+                    "thumb_url": f"/photos/thumb/{thumb_filename}",
                     "web_url": f"/photos/web/{filename}",
                     "full_url": f"/photos/full/{filename}"
                 })
