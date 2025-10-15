@@ -52,17 +52,28 @@ def build():
     if photo_data['photos']:
         click.echo(f"Found {len(photo_data['photos'])} photos")
         
-        # Check if template exists before rendering
-        template_path = Path("src/template/gallery.j2.html")
-        if template_path.exists():
-            # Render and save gallery
+        # Render templates
+        renderer = TemplateRenderer()
+        
+        # Generate gallery page
+        gallery_template = Path("src/template/gallery.j2.html")
+        if gallery_template.exists():
             click.echo("Generating gallery...")
-            renderer = TemplateRenderer()
             gallery_html = renderer.render("gallery.j2.html", photo_data)
             renderer.save_html(gallery_html, "prod/site/gallery.html")
             click.echo("Gallery page created: prod/site/gallery.html")
         else:
             click.echo("Template not found: src/template/gallery.j2.html")
+            
+        # Generate index page
+        index_template = Path("src/template/index.j2.html")
+        if index_template.exists():
+            click.echo("Generating index...")
+            index_html = renderer.render("index.j2.html", photo_data)
+            renderer.save_html(index_html, "prod/site/index.html")
+            click.echo("Index page created: prod/site/index.html")
+        else:
+            click.echo("Template not found: src/template/index.j2.html")
     else:
         click.echo("No photos found to generate gallery")
     

@@ -1,7 +1,9 @@
-<div class="aspect-square cursor-pointer" @click="openModal('{{ photo.filename }}')">
+<!-- START: src/template/components/photo-cell.j2.html -->
+<a href="{{ photo.web_url }}" target="_blank" class="block aspect-square cursor-pointer">
   <img 
     src="{{ photo.thumb_url }}" 
     alt="Wedding photo {{ photo.filename }}"
     class="w-full h-full object-cover rounded-lg hover:shadow-lg transition-shadow"
   />
-</div>
+</a>
+<!-- END: src/template/components/photo-cell.j2.html -->

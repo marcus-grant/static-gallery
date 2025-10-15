@@ -1,0 +1,67 @@
+<!-- START: src/template/index.j2.html -->
+{% extends "base.j2.html" %}
+
+{% block title %}Welcome - Wedding Gallery{% endblock %}
+
+{% block content %}
+<div class="container mx-auto py-12 px-4">
+  <!-- Hero Section -->
+  <div class="text-center mb-16">
+    <h1 class="text-4xl md:text-6xl font-bold text-gray-900 mb-4">Christine & Marcus</h1>
+    <p class="text-xl md:text-2xl text-gray-600 mb-8">August 9th, 2025</p>
+    <p class="text-lg text-gray-700 max-w-2xl mx-auto mb-8">
+      Thank you for celebrating with us! We're excited to share our special day with you through these photos.
+    </p>
+    <a href="/gallery" class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-colors">
+      View Photo Gallery
+    </a>
+  </div>
+
+  <!-- Quick Stats -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+    <div class="text-center">
+      <div class="text-3xl font-bold text-blue-600 mb-2">{{ photos|length }}</div>
+      <div class="text-gray-600">Wedding Photos</div>
+    </div>
+    <div class="text-center">
+      <div class="text-3xl font-bold text-blue-600 mb-2">10</div>
+      <div class="text-gray-600">Hours of Celebration</div>
+    </div>
+    <div class="text-center">
+      <div class="text-3xl font-bold text-blue-600 mb-2">∞</div>
+      <div class="text-gray-600">Memories Made</div>
+    </div>
+  </div>
+
+  <!-- Instructions -->
+  <div class="bg-gray-50 rounded-lg p-8 mb-8">
+    <h2 class="text-2xl font-semibold text-gray-900 mb-4">How to Download Photos</h2>
+    <div class="space-y-4 text-gray-700">
+      <p>📸 <strong>Browse:</strong> Click "View Photo Gallery" to see all photos</p>
+      <p>🔍 <strong>View:</strong> Click any photo to see the full-size version</p>
+      <p>💾 <strong>Download:</strong> Right-click and "Save Image As" to download</p>
+      <p>📱 <strong>Mobile:</strong> Long press on photos to save to your device</p>
+    </div>
+  </div>
+
+  <!-- Privacy Notice -->
+  <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-16">
+    <h3 class="text-lg font-semibold text-blue-900 mb-2">Privacy & Photo Requests</h3>
+    <p class="text-blue-800">
+      We respect everyone's privacy. If you'd prefer that a photo of you be removed from this gallery, 
+      please get in touch with us and we'll be happy to take it down immediately.
+    </p>
+  </div>
+
+  <!-- Thank You -->
+  <div class="text-center">
+    <h2 class="text-3xl font-semibold text-gray-900 mb-4">Thank You</h2>
+    <p class="text-lg text-gray-700 max-w-3xl mx-auto">
+      Your presence at our wedding meant the world to us. We hope these photos help you relive 
+      the joy and love we shared on our special day. Feel free to download and share any photos 
+      you'd like to keep.
+    </p>
+  </div>
+</div>
+{% endblock %}
+<!-- END: src/template/index.j2.html -->

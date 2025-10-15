@@ -1,17 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="robots" content="noindex, nofollow">
-  <title>Wedding Gallery</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body>
-  <div x-data="photoGallery()">
-    {% set grid_classes = "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4" %}
-    {% include 'components/photo-grid.j2.html' with context %}
-  </div>
-</body>
-</html>
+<!-- START: src/template/gallery.j2.html -->
+{% extends "base.j2.html" %}
+
+{% block content %}
+<div class="container mx-auto py-8">
+  {% set grid_classes = "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4" %}
+  {% include 'components/photo-grid.j2.html' with context %}
+</div>
+{% endblock %}
+<!-- END: src/template/gallery.j2.html -->

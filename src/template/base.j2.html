@@ -1,0 +1,22 @@
+<!-- START: src/template/base.j2.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Wedding Gallery{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-50">
+  {% include 'components/navbar.j2.html' %}
+  
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  
+  {% block scripts %}{% endblock %}
+</body>
+</html>
+<!-- END: src/template/base.j2.html -->
