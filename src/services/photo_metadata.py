@@ -9,19 +9,24 @@ class PhotoMetadataService:
             return []
         
         photos = list(prod_pics_dir.glob("*.jpg"))
+        # Sort by filename to maintain chronological order
+        photos.sort(key=lambda p: p.name)
         return photos
     
     def extract_metadata_from_filename(self, filename):
-        pattern = r"wedding-(\d{8}T\d{6}\.\d{3}Z[+-]\d{4})-([^-]+)-(\d{3})\.jpg"
+        # Pattern: collection-YYYYMMDDTHHMMSS-camera-counter.jpg
+        # Example: wedding-20250809T132034-r5a-0.jpg
+        pattern = r"([^-]+)-(\d{8}T\d{6})-([^-]+)-([0-9A-V])\.jpg"
         match = re.match(pattern, filename)
         
         if not match:
             return {}
         
         return {
-            "timestamp": match.group(1),
-            "camera": match.group(2),
-            "sequence": match.group(3)
+            "collection": match.group(1),
+            "timestamp": match.group(2),
+            "camera": match.group(3),
+            "counter": match.group(4)
         }
     
     def generate_json_metadata(self):
@@ -47,7 +52,7 @@ class PhotoMetadataService:
                     "filename": filename,
                     "timestamp": metadata["timestamp"],
                     "camera": metadata["camera"],
-                    "sequence": metadata["sequence"],
+                    "counter": metadata["counter"],
                     "thumb_url": f"/photos/thumb/{thumb_filename}",
                     "web_url": f"/photos/web/{filename}",
                     "full_url": f"/photos/full/{filename}"
