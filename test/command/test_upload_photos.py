@@ -63,14 +63,14 @@ def mock_settings():
     settings.S3_PUBLIC_SECRET_KEY = 'test_secret'
     settings.S3_PUBLIC_BUCKET = 'test-bucket'
     settings.S3_PUBLIC_REGION = 'us-east-1'
-    settings.PROCESSED_DIR = Path('/tmp/processed')
+    settings.BASE_DIR = Path('/tmp')
     return settings
 
 
 @pytest.fixture
 def processed_dir_with_files(tmp_path):
-    """Create a processed directory structure with test files."""
-    processed = tmp_path / "processed"
+    """Create a prod/pics directory structure with test files."""
+    processed = tmp_path / "prod" / "pics"
     (processed / "full").mkdir(parents=True)
     (processed / "web").mkdir(parents=True)
     (processed / "thumb").mkdir(parents=True)
@@ -122,7 +122,7 @@ class TestUploadPhotosCommand:
         s3 = boto3.client('s3', region_name='us-east-1')
         s3.create_bucket(Bucket='test-bucket')
         
-        mock_settings.PROCESSED_DIR = processed_dir_with_files
+        mock_settings.BASE_DIR = processed_dir_with_files.parent.parent
         
         with patch.dict(sys.modules, {'settings': mock_settings}):
             result = runner.invoke(upload_photos)
@@ -158,7 +158,7 @@ class TestUploadPhotosCommand:
         s3 = boto3.client('s3', region_name='us-east-1')
         s3.create_bucket(Bucket='test-bucket')
         
-        mock_settings.PROCESSED_DIR = processed_dir_with_files
+        mock_settings.BASE_DIR = processed_dir_with_files.parent.parent
         
         with patch.dict(sys.modules, {'settings': mock_settings}):
             result = runner.invoke(upload_photos, ['--dry-run'])
@@ -180,7 +180,7 @@ class TestUploadPhotosCommand:
         s3 = boto3.client('s3', region_name='us-east-1')
         s3.create_bucket(Bucket='test-bucket')
         
-        mock_settings.PROCESSED_DIR = processed_dir_with_files
+        mock_settings.BASE_DIR = processed_dir_with_files.parent.parent
         
         with patch.dict(sys.modules, {'settings': mock_settings}):
             result = runner.invoke(upload_photos, ['--prefix', 'wedding-2024'])
@@ -199,7 +199,10 @@ class TestUploadPhotosCommand:
         
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
-        mock_settings.PROCESSED_DIR = empty_dir
+        # Create prod/pics structure
+        empty_pics = empty_dir / "prod" / "pics"
+        empty_pics.mkdir(parents=True)
+        mock_settings.BASE_DIR = empty_dir
         
         with patch.dict(sys.modules, {'settings': mock_settings}):
             result = runner.invoke(upload_photos)
@@ -216,7 +219,7 @@ class TestUploadPhotosCommand:
         s3 = boto3.client('s3', region_name='us-east-1')
         s3.create_bucket(Bucket='test-bucket')
         
-        mock_settings.PROCESSED_DIR = processed_dir_with_files
+        mock_settings.BASE_DIR = processed_dir_with_files.parent.parent
         
         with patch.dict(sys.modules, {'settings': mock_settings}):
             result = runner.invoke(upload_photos, ['--progress'])
@@ -230,7 +233,7 @@ class TestUploadPhotosCommand:
         """Test upload handles S3 errors gracefully."""
         runner = CliRunner()
         
-        mock_settings.PROCESSED_DIR = processed_dir_with_files
+        mock_settings.BASE_DIR = processed_dir_with_files.parent.parent
         
         # Don't create bucket to simulate error
         with patch.dict(sys.modules, {'settings': mock_settings}):

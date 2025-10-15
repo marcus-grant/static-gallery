@@ -11,6 +11,7 @@ from src.command.process_photos import process_photos
 from src.command.build import build
 from src.command.serve import serve
 from src.command.collection_stats import collection_stats
+from src.command.deploy import deploy
 
 
 @click.group()
@@ -26,6 +27,7 @@ cli.add_command(process_photos, name="process-photos")
 cli.add_command(build, name="build")
 cli.add_command(serve, name="serve")
 cli.add_command(collection_stats, name="collection-stats")
+cli.add_command(deploy, name="deploy")
 
 
 if __name__ == "__main__":

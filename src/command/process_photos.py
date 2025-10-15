@@ -27,7 +27,7 @@ from src.services.photo_validation import validate_matching_collections
 @click.option(
     '--output', '-o',
     type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
-    help='Output directory (defaults to PROCESSED_DIR)'
+    help='Output directory (defaults to prod/pics)'
 )
 @click.option(
     '--collection-name', '-c',

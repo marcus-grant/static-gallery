@@ -11,7 +11,6 @@ BASE_DIR = Path(__file__).resolve().parent
 PIC_SOURCE_PATH_FULL = BASE_DIR / 'pics'
 PIC_SOURCE_PATH_WEB = BASE_DIR / 'pics-web'  # Web-optimized versions from photographer
 OUTPUT_DIR = BASE_DIR / 'output'
-PROCESSED_DIR = BASE_DIR / 'processed-photos'
 
 # Pelican settings
 CONTENT_DIR = BASE_DIR / 'content'
@@ -75,7 +74,6 @@ if LOCAL_SETTINGS_PATH.exists():
 PIC_SOURCE_PATH_FULL = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_FULL', str(PIC_SOURCE_PATH_FULL)))
 PIC_SOURCE_PATH_WEB = Path(os.getenv('GALLERIA_PIC_SOURCE_PATH_WEB', str(PIC_SOURCE_PATH_WEB)))
 OUTPUT_DIR = Path(os.getenv('GALLERIA_OUTPUT_DIR', str(OUTPUT_DIR)))
-PROCESSED_DIR = Path(os.getenv('GALLERIA_PROCESSED_DIR', str(PROCESSED_DIR)))
 
 # S3 settings - environment variable overrides
 S3_ARCHIVE_ENDPOINT = os.getenv('GALLERIA_S3_ARCHIVE_ENDPOINT', S3_ARCHIVE_ENDPOINT)

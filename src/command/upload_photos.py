@@ -53,7 +53,7 @@ def progress_callback(filename: str, current: int, total: int):
 @click.option(
     '--source', '-s',
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
-    help='Directory containing processed photos to upload (defaults to PROCESSED_DIR)'
+    help='Directory containing processed photos to upload (defaults to prod/pics)'
 )
 @click.option(
     '--dry-run',
@@ -92,8 +92,8 @@ def upload_photos(
         click.echo("  - GALLERIA_S3_PUBLIC_REGION", err=True)
         sys.exit(1)
     
-    # Use provided source or default from settings
-    upload_dir = source or settings.PROCESSED_DIR
+    # Use provided source or default photos directory
+    upload_dir = source or (settings.BASE_DIR / 'prod' / 'pics')
     
     if not upload_dir.exists():
         click.echo(f"Error: Source directory does not exist: {upload_dir}", err=True)

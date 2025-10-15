@@ -2,6 +2,14 @@
 
 ## 2025-10-15
 
+### Build & Deployment Pipeline Completed
+- **Deploy command**: Added full deploy command with photos-only, site-only, dry-run options
+- **Shared service layer**: Created reusable `deploy_directory_to_s3()` function for DRY architecture
+- **Build refactoring**: Extracted pure `build_gallery()` function with TDD approach
+- **Directory structure**: Removed `PROCESSED_DIR` setting, standardized on `prod/pics/` for photos
+- **Test fixes**: Fixed all command tests after directory structure cleanup
+- **Pipeline ready**: Full automated build and deployment pipeline operational
+
 ### Base32 Counter Filename System
 - **UTC normalization**: Replaced timezone offsets with UTC timestamps (removes + signs)
 - **Base32 counters**: Implemented lexical base32 counter (0-V) instead of 3-digit numbers

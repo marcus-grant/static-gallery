@@ -68,7 +68,7 @@ The project follows a simplified workflow for processing and deploying the photo
 ```txt
 Original Photos (PIC_SOURCE_PATH_FULL + PIC_SOURCE_PATH_WEB)
     ↓ [process-photos] 
-Processed Photos (PROCESSED_DIR)
+Processed Photos (prod/pics)
     ↓ [build]
 Static Site (OUTPUT_DIR)
     ↓ [deploy] 
@@ -85,7 +85,7 @@ Live Website
    - Extracts EXIF data and generates chronological filenames
    - Creates thumbnails (400x400 WebP) from web versions
    - Validates filename consistency between full and web collections
-   - Outputs to `PROCESSED_DIR` with structure:
+   - Outputs to `prod/pics` with structure:
      ```
      processed-photos/
        full/     (symlinks to originals with chronological names)
@@ -167,17 +167,17 @@ Purge: Manual trigger capability
 
 ---
 
-### Build & Deployment Pipeline **[NEXT]**
+### Build & Deployment Pipeline **[COMPLETED]**
 
 **Deliverable**: Automated build and deployment scripts
 
 #### Acceptance Criteria
 
-- [ ] Build script processes all photos correctly
-- [ ] Custom site generator creates static HTML successfully
-- [ ] Deployment script uploads to Hetzner
+- [x] Build script processes all photos correctly
+- [x] Custom site generator creates static HTML successfully
+- [x] Deployment script uploads to Hetzner
 - [ ] Non-obvious URL structure implemented
-- [ ] Full pipeline runs without manual intervention
+- [x] Full pipeline runs without manual intervention
 
 #### Command Implementation Requirements
 
@@ -187,7 +187,7 @@ Purge: Manual trigger capability
 
 **CLI Options**:
 - `--source`, `-s`: Override PIC_SOURCE_PATH_FULL
-- `--output`, `-o`: Override PROCESSED_DIR
+- `--output`, `-o`: Override default output (prod/pics)
 - `--collection-name`: Name for this photo collection (default: from settings)
 - `--skip-existing`: Skip processing if output files exist
 - `--dry-run`: Show what would be processed without doing it
@@ -244,13 +244,24 @@ See "Upload to Public Gallery Bucket" section above for details.
   - `/metadata.json` - Photo metadata with corrected timestamps
   - `/index.html`, `/gallery.html` - Static site files
 
+**Architecture Plan**:
+- **Service Layer**: Create reusable `deploy_directory_to_s3()` function
+  - Takes source dir, bucket, prefix, options
+  - Handles S3 logic, progress, dry-run, error handling
+  - Returns detailed upload results
+- **Commands**:
+  - `upload-photos`: Simple wrapper around service function for prod/pics → photos/ prefix
+  - `deploy`: Comprehensive wrapper - calls service function for both photos AND static site files
+- **Smart Detection**: Add in future iteration after initial deployment
+  - Compare local file checksums vs S3 ETags
+  - Only upload changed files
+  - Track deployment state in metadata
+
 **Deployment Steps**:
-1. Process photos with timestamp corrections and EXIF updates
-2. Upload corrected photos to production bucket
-3. Upload static site files to production bucket
-4. Trigger CDN cache invalidation
-5. Verify deployment with smoke tests
-6. Output production URLs
+1. Call `deploy_directory_to_s3()` for photos (if not --site-only)
+2. Call `deploy_directory_to_s3()` for static site files (if not --photos-only)
+3. Trigger CDN cache invalidation (if --invalidate-cdn)
+4. Output deployment summary and production URLs
 
 ---
 

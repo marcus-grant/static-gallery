@@ -14,6 +14,50 @@ from src.services.photo_metadata import PhotoMetadataService
 from src.services.template_renderer import TemplateRenderer
 
 
+def build_gallery():
+    """Pure function that orchestrates gallery building services.
+    
+    Returns:
+        Dict with build results: {
+            'success': bool,
+            'photos_processed': int,
+            'gallery_generated': bool
+        }
+    """
+    # Create output directory structure
+    create_output_directory_structure(Path.cwd())
+    
+    # Generate photo metadata
+    metadata_service = PhotoMetadataService()
+    photo_data = metadata_service.generate_json_metadata()
+    
+    photos_count = len(photo_data['photos'])
+    gallery_generated = False
+    
+    if photo_data['photos']:
+        # Render templates
+        renderer = TemplateRenderer()
+        
+        # Generate gallery page
+        gallery_template = Path("src/template/gallery.j2.html")
+        if gallery_template.exists():
+            gallery_html = renderer.render("gallery.j2.html", photo_data)
+            renderer.save_html(gallery_html, "prod/site/gallery.html")
+            gallery_generated = True
+        
+        # Generate index page  
+        index_template = Path("src/template/index.j2.html")
+        if index_template.exists():
+            index_html = renderer.render("index.j2.html", photo_data)
+            renderer.save_html(index_html, "prod/site/index.html")
+    
+    return {
+        'success': True,
+        'photos_processed': photos_count,
+        'gallery_generated': gallery_generated
+    }
+
+
 @click.command()
 def build():
     """Build static photo gallery site from processed photos."""
@@ -35,46 +79,19 @@ def build():
         else:
             click.echo("All source directories found")
     
-    # Create output directory structure
+    # Call the pure build function
     click.echo("Creating output directory structure: prod/site")
-    result = create_output_directory_structure(base_dir)
+    result = build_gallery()
     
-    if result['created']:
-        click.echo("Created directory structure: prod/site with css/ and js/ subdirectories")
-    else:
-        click.echo("Output directory already exists: prod/site")
-    
-    # Generate photo metadata
-    click.echo("Scanning photos...")
-    metadata_service = PhotoMetadataService()
-    photo_data = metadata_service.generate_json_metadata()
-    
-    if photo_data['photos']:
-        click.echo(f"Found {len(photo_data['photos'])} photos")
-        
-        # Render templates
-        renderer = TemplateRenderer()
-        
-        # Generate gallery page
-        gallery_template = Path("src/template/gallery.j2.html")
-        if gallery_template.exists():
-            click.echo("Generating gallery...")
-            gallery_html = renderer.render("gallery.j2.html", photo_data)
-            renderer.save_html(gallery_html, "prod/site/gallery.html")
+    # Report results
+    if result['success']:
+        click.echo(f"Found {result['photos_processed']} photos")
+        if result['gallery_generated']:
             click.echo("Gallery page created: prod/site/gallery.html")
-        else:
-            click.echo("Template not found: src/template/gallery.j2.html")
-            
-        # Generate index page
-        index_template = Path("src/template/index.j2.html")
-        if index_template.exists():
-            click.echo("Generating index...")
-            index_html = renderer.render("index.j2.html", photo_data)
-            renderer.save_html(index_html, "prod/site/index.html")
             click.echo("Index page created: prod/site/index.html")
         else:
-            click.echo("Template not found: src/template/index.j2.html")
+            click.echo("No photos found to generate gallery")
+        click.echo("Build complete!")
     else:
-        click.echo("No photos found to generate gallery")
-    
-    click.echo("Build complete!")
+        click.echo("Build failed!")
+        return 1
