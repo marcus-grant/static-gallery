@@ -75,8 +75,8 @@ class TemplateDebugger:
         data = {
             "photo": {
                 "filename": "2024-06-15_14-30-45_wedding-ceremony.jpg",
-                "thumb_url": "/photos/thumb/2024-06-15_14-30-45_wedding-ceremony.webp",
-                "web_url": "/photos/web/2024-06-15_14-30-45_wedding-ceremony.jpg"
+                "thumb_url": "photos/thumb/2024-06-15_14-30-45_wedding-ceremony.webp",
+                "web_url": "photos/web/2024-06-15_14-30-45_wedding-ceremony.jpg"
             }
         }
         return self.render_and_print(

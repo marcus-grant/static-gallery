@@ -2,6 +2,36 @@
 
 **Commands implemented**: find-samples, upload-photos, process-photos
 
+## Current Test Failures **[IMMEDIATE PRIORITY]**
+
+**Status**: 8 failing template tests after CDN URL changes (233 passing, 4 skipped)
+
+### Identified Bugs
+
+1. **Template URL Expectations** - Tests expect `/photos/` URLs but code now generates relative `photos/` URLs
+   - Affected: `test_photo_cell_component.py`, `test_photo_grid_component.py`
+   - Root cause: URL format change in `PhotoMetadataService`
+
+2. **Missing Alpine.js Integration** - Templates missing Alpine.js CDN and initialization
+   - Affected: `test_base_template.py`, `test_gallery_template.py`
+   - Root cause: Alpine.js functionality not implemented in templates
+
+3. **Template Debug Service Issues** - Missing `render_photo_cell` method
+   - Affected: `test_template_debug.py`
+   - Root cause: TemplateRenderer missing photo cell rendering method
+
+4. **Photo Component Rendering** - Photo cells and grids not rendering properly
+   - Affected: Multiple photo component tests
+   - Root cause: Alpine.js missing + URL format mismatch
+
+### Fix Priority
+- [x] Update template tests to expect relative URLs (`photos/` not `/photos/`)
+- [ ] **DEFER Alpine.js tests** - These test future JS functionality, not current static MVP
+- [ ] Implement missing TemplateRenderer.render_photo_cell method  
+- [ ] **Focus on static site first** - Skip JS-related test failures until post-deploy
+
+**Note**: Alpine.js functionality is planned for post-deployment. Current priority is static site with EXIF timestamp correction.
+
 ## Project Overview
 
 A static photo gallery built with a custom Python static site generator,

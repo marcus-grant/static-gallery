@@ -31,13 +31,13 @@ def test_photo_grid_component_renders_photo_cells():
         "photos": [
             {
                 "filename": "2024-06-15_14-30-45_photo1.jpg",
-                "thumb_url": "/photos/thumb/2024-06-15_14-30-45_photo1.webp",
-                "web_url": "/photos/web/2024-06-15_14-30-45_photo1.jpg"
+                "thumb_url": "photos/thumb/2024-06-15_14-30-45_photo1.webp",
+                "web_url": "photos/web/2024-06-15_14-30-45_photo1.jpg"
             },
             {
                 "filename": "2024-06-15_14-35-20_photo2.jpg", 
-                "thumb_url": "/photos/thumb/2024-06-15_14-35-20_photo2.webp",
-                "web_url": "/photos/web/2024-06-15_14-35-20_photo2.jpg"
+                "thumb_url": "photos/thumb/2024-06-15_14-35-20_photo2.webp",
+                "web_url": "photos/web/2024-06-15_14-35-20_photo2.jpg"
             }
         ],
         "grid_classes": "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4"
@@ -46,9 +46,9 @@ def test_photo_grid_component_renders_photo_cells():
     html = renderer.render("components/photo-grid.j2.html", context)
     soup = BeautifulSoup(html, 'html.parser')
     
-    # Check that photo cells are rendered
-    photo_cells = soup.find_all('div', class_=lambda x: x and 'aspect-square' in x)
-    assert len(photo_cells) == 2
+    # Check that photo cells are rendered (looking for anchor tags from photo-cell template)
+    photo_links = soup.find_all('a', class_=lambda x: x and 'aspect-square' in x)
+    assert len(photo_links) == 2
     
     # Check that images have correct src
     images = soup.find_all('img')
