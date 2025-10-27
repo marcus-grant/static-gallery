@@ -2,6 +2,23 @@
 
 ## 2025-10-27
 
+### EXIF Timestamp Offset System Completed
+- **Settings system**: Added TIMESTAMP_OFFSET_HOURS with environment variable support
+- **EXIF service integration**: Implemented offset application in get_datetime_taken()
+- **Photo processing workflow**: Integrated offset through complete processing pipeline
+- **Test infrastructure**: Added comprehensive test suite with proper isolation (56 tests pass)
+- **Settings isolation**: Implemented autouse fixtures to prevent local config interference
+- **Documentation updates**: Updated TODO.md with completion status and future roadmap
+- **Context cleanup**: Removed DELETEME.md, preserved information in TODO.md
+
+### Testing Infrastructure Documentation
+- **Testing documentation**: Created doc/testing/ directory with comprehensive guides
+- **Fixtures documentation**: Documented autouse patterns for settings isolation
+- **Synthetic photos**: Documented test photo generation for CI/CD compatibility
+- **Documentation structure**: Updated doc/README.md with testing section
+
+### Previous Work
+
 ### CDN Integration Preparation Completed
 - **Relative URL system**: Simplified URL generation to use `photos/web/photo.jpg` instead of absolute paths
 - **Dev server update**: Added support for relative photo paths alongside existing `/photos/` routes

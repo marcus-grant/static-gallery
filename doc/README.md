@@ -25,6 +25,10 @@ working, acceptable user experience deployed quickly.
   specifications, and project roadmap
 - **[Changelog](./CHANGELOG.md)** - Record of completed features and major 
   changes
+- **[Contributing Guidelines](./CONTRIBUTE.md)** - Development workflow, testing requirements, and commit conventions
+
+### Testing Infrastructure
+- **[Testing Documentation](./testing/README.md)** - Test fixtures, isolation patterns, and synthetic photo generation for reproducible CI/CD-compatible testing
 
 ### Command-Line Interface
 - **[Command Documentation](./command/README.md)** - Complete guide to all CLI 
