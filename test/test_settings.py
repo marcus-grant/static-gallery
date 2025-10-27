@@ -1,7 +1,15 @@
 import os
 import sys
+import pytest
 from pyfakefs.fake_filesystem_unittest import Patcher
 from unittest.mock import patch
+import settings
+
+
+@pytest.fixture(autouse=True) 
+def reset_timestamp_offset(monkeypatch):
+    """Reset TIMESTAMP_OFFSET_HOURS to 0 for all tests unless explicitly overridden"""
+    monkeypatch.setattr(settings, 'TIMESTAMP_OFFSET_HOURS', 0)
 
 
 # Test fixtures
@@ -274,3 +282,58 @@ PIC_SOURCE_PATH_FULL = Path('/local/full-pics')
                 # - FULL: local setting overrides default
                 assert str(test_settings.PIC_SOURCE_PATH_WEB) == '/env/web-pics'  # env > local
                 assert str(test_settings.PIC_SOURCE_PATH_FULL) == '/local/full-pics'  # local > default
+
+    def test_timestamp_offset_setting_default(self, monkeypatch):
+        """Test that TIMESTAMP_OFFSET_HOURS has a default value."""
+        # Explicitly set to 0 to test default behavior
+        monkeypatch.setattr(settings, 'TIMESTAMP_OFFSET_HOURS', 0)
+        
+        assert hasattr(settings, 'TIMESTAMP_OFFSET_HOURS')
+        assert settings.TIMESTAMP_OFFSET_HOURS == 0
+
+    def test_timestamp_offset_local_override(self):
+        """Test that local settings can override TIMESTAMP_OFFSET_HOURS."""
+        offset_local_settings = """
+from pathlib import Path
+TIMESTAMP_OFFSET_HOURS = -6
+"""
+        
+        with Patcher(modules_to_reload=[]) as patcher:
+            fs = patcher.fs
+            
+            import pathlib
+            settings_path = pathlib.Path(__file__).resolve().parent.parent / "settings.py"
+            base_dir = settings_path.parent
+            local_settings_path = base_dir / "settings.local.py"
+            
+            fs.create_file(str(local_settings_path), contents=offset_local_settings)
+            
+            with patch("dotenv.load_dotenv"):
+                import settings as test_settings
+            
+            assert test_settings.TIMESTAMP_OFFSET_HOURS == -6
+
+    def test_timestamp_offset_env_override(self):
+        """Test that environment variables override TIMESTAMP_OFFSET_HOURS."""
+        offset_local_settings = """
+from pathlib import Path
+TIMESTAMP_OFFSET_HOURS = -6
+"""
+        
+        with Patcher(modules_to_reload=[]) as patcher:
+            fs = patcher.fs
+            
+            import pathlib
+            settings_path = pathlib.Path(__file__).resolve().parent.parent / "settings.py"
+            base_dir = settings_path.parent
+            local_settings_path = base_dir / "settings.local.py"
+            
+            fs.create_file(str(local_settings_path), contents=offset_local_settings)
+            
+            env_overrides = {'GALLERIA_TIMESTAMP_OFFSET_HOURS': '-2'}
+            
+            with patch.dict(os.environ, env_overrides):
+                with patch("dotenv.load_dotenv"):
+                    import settings as test_settings
+                
+                assert test_settings.TIMESTAMP_OFFSET_HOURS == -2

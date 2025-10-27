@@ -53,6 +53,9 @@ THUMB_SIZE = (400, 400)  # Max dimensions for thumbnails
 JPEG_QUALITY = 85
 WEBP_QUALITY = 85
 
+# EXIF timestamp correction settings
+TIMESTAMP_OFFSET_HOURS = 0  # Offset to correct systematic timestamp errors (hours)
+
 # Load local settings if present
 LOCAL_SETTINGS_PATH = CONFIG_DIR / LOCAL_SETTINGS_FILENAME
 if LOCAL_SETTINGS_PATH.exists():
@@ -87,6 +90,9 @@ S3_PUBLIC_ACCESS_KEY = os.getenv('GALLERIA_S3_PUBLIC_ACCESS_KEY', S3_PUBLIC_ACCE
 S3_PUBLIC_SECRET_KEY = os.getenv('GALLERIA_S3_PUBLIC_SECRET_KEY', S3_PUBLIC_SECRET_KEY)
 S3_PUBLIC_BUCKET = os.getenv('GALLERIA_S3_PUBLIC_BUCKET', S3_PUBLIC_BUCKET)
 S3_PUBLIC_REGION = os.getenv('GALLERIA_S3_PUBLIC_REGION', S3_PUBLIC_REGION)
+
+# EXIF timestamp correction - environment variable override
+TIMESTAMP_OFFSET_HOURS = int(os.getenv('GALLERIA_TIMESTAMP_OFFSET_HOURS', str(TIMESTAMP_OFFSET_HOURS)))
 
 # TODO: Consider adding TEST_OUTPUT_PATH setting for real-world testing
 # This would allow test outputs to be separate from production processing paths

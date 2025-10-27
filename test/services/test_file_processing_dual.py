@@ -5,6 +5,13 @@ from PIL import Image
 import piexif
 
 from src.services.file_processing import process_dual_photo_collection
+import settings
+
+
+@pytest.fixture(autouse=True)
+def reset_timestamp_offset(monkeypatch):
+    """Reset TIMESTAMP_OFFSET_HOURS to 0 for all tests unless explicitly overridden"""
+    monkeypatch.setattr(settings, 'TIMESTAMP_OFFSET_HOURS', 0)
 
 
 class TestProcessDualPhotoCollection:
@@ -119,3 +126,58 @@ class TestProcessDualPhotoCollection:
         # Should have skipped processing
         assert result2["total_processed"] == 0
         assert result2["total_skipped"] == 1
+    
+    def test_timestamp_offset_applied_in_processing(self, tmp_path, monkeypatch):
+        """Test that timestamp offset is properly applied during photo processing."""
+        # Set timestamp offset to -3 hours
+        monkeypatch.setattr(settings, 'TIMESTAMP_OFFSET_HOURS', -3)
+        
+        # Setup directories
+        full_dir = tmp_path / "full"
+        web_dir = tmp_path / "web"
+        output_dir = tmp_path / "output"
+        
+        full_dir.mkdir()
+        web_dir.mkdir()
+        
+        # Create matching photos with EXIF timestamp
+        exif_dict = {"0th": {}, "Exif": {}, "1st": {}, "GPS": {}}
+        exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = b"2024:10:12 14:30:45"
+        exif_bytes = piexif.dump(exif_dict)
+        
+        # Full resolution
+        img_full = Image.new('RGB', (800, 600), color='red')
+        img_full.save(full_dir / "IMG_001.jpg", exif=exif_bytes)
+        
+        # Web version
+        img_web = Image.new('RGB', (400, 300), color='red')
+        img_web.save(web_dir / "IMG_001.jpg", exif=exif_bytes)
+        
+        # Process collection
+        result = process_dual_photo_collection(
+            full_source_dir=full_dir,
+            web_source_dir=web_dir,
+            output_dir=output_dir,
+            collection_name="test"
+        )
+        
+        # Verify processing succeeded
+        assert result["total_processed"] == 1
+        assert len(result["errors"]) == 0
+        assert len(result["photos"]) == 1
+        
+        # Check that the processed photo has the offset applied
+        processed_photo = result["photos"][0]
+        
+        # The timestamp should be offset by -3 hours from original 2024:10:12 14:30:45
+        # Original: 2024-10-12 14:30:45
+        # With -3 hours: 2024-10-12 11:30:45
+        from datetime import datetime
+        expected_timestamp = datetime(2024, 10, 12, 11, 30, 45)
+        
+        # The processed photo should have the offset timestamp
+        assert processed_photo.exif.timestamp == expected_timestamp
+        
+        # The generated filename should reflect the corrected timestamp
+        # Format is: test-20241012T113045-unk-0.jpg (YYYYMMDDTHHMMSS)
+        assert "20241012T113045" in processed_photo.generated_filename

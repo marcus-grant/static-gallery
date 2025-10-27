@@ -1,8 +1,9 @@
 from pathlib import Path
 from typing import Union, Optional, List, Tuple, Dict
-from datetime import datetime
+from datetime import datetime, timedelta
 import exifread
 import re
+import settings
 
 
 def get_datetime_taken(photo_path: Union[Path, str]) -> Optional[datetime]:
@@ -19,7 +20,13 @@ def get_datetime_taken(photo_path: Union[Path, str]) -> Optional[datetime]:
         if "EXIF DateTimeOriginal" in tags:
             datetime_str = str(tags["EXIF DateTimeOriginal"])
             # Parse EXIF datetime format: "YYYY:MM:DD HH:MM:SS"
-            return datetime.strptime(datetime_str, "%Y:%m:%d %H:%M:%S")
+            dt = datetime.strptime(datetime_str, "%Y:%m:%d %H:%M:%S")
+            
+            # Apply timestamp offset if configured
+            if hasattr(settings, 'TIMESTAMP_OFFSET_HOURS') and settings.TIMESTAMP_OFFSET_HOURS != 0:
+                dt = dt + timedelta(hours=settings.TIMESTAMP_OFFSET_HOURS)
+            
+            return dt
     except (FileNotFoundError, OSError):
         pass
     return None

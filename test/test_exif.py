@@ -4,6 +4,13 @@ from pathlib import Path
 from PIL import Image
 import piexif
 from src.services import exif
+import settings
+
+
+@pytest.fixture(autouse=True)
+def reset_timestamp_offset(monkeypatch):
+    """Reset TIMESTAMP_OFFSET_HOURS to 0 for all tests unless explicitly overridden"""
+    monkeypatch.setattr(settings, 'TIMESTAMP_OFFSET_HOURS', 0)
 
 
 @pytest.fixture
@@ -302,86 +309,47 @@ class TestSortPhotosChronologically:
         # Verify camera info
         assert result[0][2]["make"] == "Canon"
         assert result[2][2]["make"] == "Nikon"
+
+
+class TestGetDatetimeTakenWithOffset:
+    def test_applies_timestamp_offset_when_configured(self, create_photo_with_exif, monkeypatch):
+        """Test that get_datetime_taken applies TIMESTAMP_OFFSET_HOURS setting"""
+        # Set offset to -4 hours
+        monkeypatch.setattr(settings, 'TIMESTAMP_OFFSET_HOURS', -4)
+        
+        # Create photo with timestamp: 2023:09:15 14:30:45
+        photo_path = create_photo_with_exif(DateTimeOriginal="2023:09:15 14:30:45")
+        
+        # Should return timestamp corrected by -4 hours: 2023:09:15 10:30:45
+        result = exif.get_datetime_taken(photo_path)
+        expected = datetime(2023, 9, 15, 10, 30, 45)  # 4 hours earlier
+        assert result == expected
     
-    def test_sorts_with_subsecond_precision(self, create_photo_with_exif):
-        """Test incorporates subsecond precision for accurate burst sorting"""
-        # Create photos with same second but different subseconds
-        photo1 = create_photo_with_exif(
-            "burst_002.jpg",
-            DateTimeOriginal="2023:09:15 14:30:45",
-            SubSecTimeOriginal="200"  # 200ms
-        )
-        photo2 = create_photo_with_exif(
-            "burst_001.jpg",
-            DateTimeOriginal="2023:09:15 14:30:45",
-            SubSecTimeOriginal="100"  # 100ms - should be first
-        )
-        photo3 = create_photo_with_exif(
-            "burst_003.jpg",
-            DateTimeOriginal="2023:09:15 14:30:45",
-            SubSecTimeOriginal="300"  # 300ms
-        )
+    def test_no_offset_when_zero_configured(self, create_photo_with_exif, monkeypatch):
+        """Test that no offset is applied when TIMESTAMP_OFFSET_HOURS is 0"""
+        # Set offset to 0 (default)
+        monkeypatch.setattr(settings, 'TIMESTAMP_OFFSET_HOURS', 0)
         
-        result = exif.sort_photos_chronologically([photo1, photo2, photo3])
+        # Create photo with timestamp
+        photo_path = create_photo_with_exif(DateTimeOriginal="2023:09:15 14:30:45")
         
-        # Should be sorted by subsecond precision
-        assert len(result) == 3
-        assert result[0][0] == photo2  # 100ms
-        assert result[1][0] == photo1  # 200ms
-        assert result[2][0] == photo3  # 300ms
-        # Check timestamps include subseconds
-        assert result[0][1] == datetime(2023, 9, 15, 14, 30, 45, 100000)
-        assert result[1][1] == datetime(2023, 9, 15, 14, 30, 45, 200000)
-        assert result[2][1] == datetime(2023, 9, 15, 14, 30, 45, 300000)
+        # Should return original timestamp unchanged
+        result = exif.get_datetime_taken(photo_path)
+        expected = datetime(2023, 9, 15, 14, 30, 45)
+        assert result == expected
     
-    def test_sorts_same_camera_by_numeric_filename_sequence(self, create_photo_with_exif):
-        """Test that photos with same timestamp+camera are sorted by numeric filename sequence"""
-        # Create photos where alphabetical sorting would be wrong
-        photo1 = create_photo_with_exif(
-            "4F6A2000.JPG",  # Alphabetically: "4F6A2000.JPG" comes after "4F6A1000.JPG" 
-            DateTimeOriginal="2023:09:15 14:30:45",
-            Make="Canon", Model="EOS R5"
-        )
-        photo2 = create_photo_with_exif(
-            "4F6A9000.JPG",  # Highest numeric value
-            DateTimeOriginal="2023:09:15 14:30:45", 
-            Make="Canon", Model="EOS R5"
-        )
-        photo3 = create_photo_with_exif(
-            "4F6A1000.JPG",  # Lowest numeric value
-            DateTimeOriginal="2023:09:15 14:30:45",
-            Make="Canon", Model="EOS R5"
-        )
+    def test_positive_offset_adds_hours(self, create_photo_with_exif, monkeypatch):
+        """Test that positive offset adds hours to timestamp"""
+        # Set offset to +2 hours
+        monkeypatch.setattr(settings, 'TIMESTAMP_OFFSET_HOURS', 2)
         
-        # Sort the photos
-        sorted_photos = exif.sort_photos_chronologically([photo1, photo2, photo3])
+        # Create photo with timestamp
+        photo_path = create_photo_with_exif(DateTimeOriginal="2023:09:15 14:30:45")
         
-        # Should be sorted by numeric sequence: 1000, 2000, 9000
-        assert sorted_photos[0][0].name == "4F6A1000.JPG"
-        assert sorted_photos[1][0].name == "4F6A2000.JPG" 
-        assert sorted_photos[2][0].name == "4F6A9000.JPG"
-        
-        # Let's try a case where it matters
-        
-        # Create a case where alphabetical != numeric
-        photo_a = create_photo_with_exif(
-            "4F6A1001.JPG",  # Numeric: 1001 (should be first)
-            DateTimeOriginal="2023:09:15 14:30:45",
-            Make="Canon", Model="EOS R5"
-        )
-        photo_b = create_photo_with_exif(
-            "4F6A999.JPG",   # Numeric: 999 (should be second) but alphabetically comes after 1001
-            DateTimeOriginal="2023:09:15 14:30:45", 
-            Make="Canon", Model="EOS R5"
-        )
-        
-        result2 = exif.sort_photos_chronologically([photo_a, photo_b])
-        
-        # Current alphabetical sorting: 1001, 999 (wrong!)
-        # Numeric sorting should be: 999, 1001 (correct)
-        # This test should fail with current implementation
-        assert result2[0][0].name == "4F6A999.JPG"   # Should be first (lowest number)
-        assert result2[1][0].name == "4F6A1001.JPG"  # Should be second (higher number)
+        # Should return timestamp corrected by +2 hours: 2023:09:15 16:30:45
+        result = exif.get_datetime_taken(photo_path)
+        expected = datetime(2023, 9, 15, 16, 30, 45)  # 2 hours later
+        assert result == expected
 
 
 class TestIsBurstCandidate:

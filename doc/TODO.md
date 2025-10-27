@@ -30,7 +30,206 @@
 - [ ] Implement missing TemplateRenderer.render_photo_cell method  
 - [ ] **Focus on static site first** - Skip JS-related test failures until post-deploy
 
-**Note**: Alpine.js functionality is planned for post-deployment. Current priority is static site with EXIF timestamp correction.
+**Note**: Alpine.js functionality is planned for post-deployment. Current priority is JSON metadata system.
+
+**Recent Completed Work**:
+- ✅ EXIF timestamp correction implemented and tested (56 tests pass)
+- ✅ CDN integration with relative URLs (`photos/web/photo.jpg` not `/photos/`)
+- ✅ Dev server supports both `/photos/` and `photos/` paths  
+- ✅ Template tests fixed for URL format changes
+- ✅ Alpine.js functionality deferred until post-deployment
+- ✅ Static-first approach: Pure HTML gallery without JavaScript
+
+## EXIF Timestamp Correction **[COMPLETED]**
+
+**Problem**: Camera EXIF shows `+00:00` (UTC) timezone but timestamps are 4 hours ahead of expected UTC. All 645 photos have systematic 4-hour offset.
+
+**Goal**: Add `-4` hour offset setting and integrate into photo processing workflow.
+
+**✅ IMPLEMENTATION COMPLETE** - Key details for next developer:
+- Offset applied during EXIF reading in `get_datetime_taken()` (not file modification)
+- Uses `timedelta(hours=offset)` for timestamp correction  
+- All tests use `autouse` fixtures for proper isolation (`reset_timestamp_offset`)
+- Original files remain unchanged (symlinks preserved in `prod/pics/`)
+- Settings precedence: `defaults → local settings → environment variables`
+- ⚠️ **CRITICAL**: Deploy step must copy files and modify EXIF in uploads (see "Deployment EXIF Modification" section below)
+
+### Implementation Tasks
+
+1. **Add Settings** (TDD approach)
+   - [x] Write test for timestamp offset setting
+   - [x] Add `TIMESTAMP_OFFSET_HOURS` to `settings.py` (defaults to 0)
+   - [x] Add environment variable support: `GALLERIA_TIMESTAMP_OFFSET_HOURS`
+
+2. **Modify EXIF Service** (TDD approach)
+   - [x] Write test for offset application in `get_datetime_taken()`
+   - [x] Update `src/services/exif.py` to apply offset
+   - [x] Use JSON metadata for corrections (not actual EXIF file modification)
+
+3. **Integrate into Photo Processing** (TDD approach)
+   - [x] Write test for offset integration in processing workflow
+   - [x] Verify offset flows through `process_dual_photo_collection`
+   - [x] Preserve originals (symlinks remain unchanged)
+
+4. **Testing & Validation**
+   - [x] All tests pass with proper isolation using `autouse` fixtures
+   - [x] Run comprehensive test suite validation (56 tests pass)
+   - [x] Verify EXIF correction maintains chronological ordering with synthetic photos
+   - [x] Test chronological filename generation with offset timestamps
+
+5. **JSON Metadata System** (New Approach)
+   - [ ] Design JSON schema for corrected timestamps and EXIF data
+   - [ ] Generate `prod/gallery-metadata.json` during photo processing
+   - [ ] Update build system to read from JSON metadata
+   - [ ] Generate frontend-ready `prod/site/gallery-data.json`
+
+## JSON Metadata & Idempotent Deployment **[NEXT PRIORITY]**
+
+**Objective**: Implement JSON-based metadata system for EXIF corrections and enable selective deployment based on file changes.
+
+**Benefits**:
+- Separate EXIF corrections from photo storage
+- Enable idempotent deployments (only upload changed files)
+- Provide frontend-ready JSON for JavaScript gallery functionality
+- Preserve original photos unchanged
+
+### JSON Metadata Schema Design
+
+**Local Metadata** (`prod/gallery-metadata.json`):
+```json
+{
+  "schema_version": "1.0",
+  "generated_at": "2024-10-27T14:30:45Z",
+  "collection": "wedding",
+  "settings": {
+    "timestamp_offset_hours": -4
+  },
+  "photos": [
+    {
+      "id": "wedding-20240810T143045-r5a-0",
+      "original_path": "pics-full/IMG_001.jpg",
+      "file_hash": "sha256:abc123...",
+      "exif": {
+        "original_timestamp": "2024-08-10T18:30:45",
+        "corrected_timestamp": "2024-08-10T14:30:45",
+        "timezone_original": "+00:00",
+        "timezone_corrected": "+02:00",
+        "camera": {"make": "Canon", "model": "EOS R5"},
+        "subsecond": 123
+      },
+      "files": {
+        "full": "prod/pics/full/wedding-20240810T143045-r5a-0.jpg",
+        "web": "prod/pics/web/wedding-20240810T143045-r5a-0.jpg", 
+        "thumb": "prod/pics/thumb/wedding-20240810T143045-r5a-0.webp"
+      }
+    }
+  ]
+}
+```
+
+**Frontend JSON** (`prod/site/gallery-data.json`):
+```json
+{
+  "collection": "wedding",
+  "photos": [
+    {
+      "id": "wedding-20240810T143045-r5a-0",
+      "timestamp": "2024-08-10T14:30:45+02:00",
+      "camera": "Canon EOS R5",
+      "urls": {
+        "full": "photos/full/wedding-20240810T143045-r5a-0.jpg",
+        "web": "photos/web/wedding-20240810T143045-r5a-0.jpg",
+        "thumb": "photos/thumb/wedding-20240810T143045-r5a-0.webp"
+      }
+    }
+  ]
+}
+```
+
+### Implementation Tasks
+
+1. **Photo Processing Enhancement**
+   - [ ] Add file hash calculation for change detection
+   - [ ] Generate `prod/gallery-metadata.json` with corrected timestamps
+   - [ ] Include original EXIF data and corrections in metadata
+   - [ ] Update tests for JSON metadata generation
+
+2. **Build System Updates**
+   - [ ] Modify `PhotoMetadataService` to read from JSON metadata
+   - [ ] Generate frontend-optimized `gallery-data.json`
+   - [ ] Maintain backward compatibility with filename parsing
+   - [ ] Update template rendering to use JSON data
+
+3. **Idempotent Deployment System**
+   - [ ] Download remote `gallery-metadata.json` from S3 bucket
+   - [ ] Compare local vs remote metadata (file hashes, timestamps)
+   - [ ] Generate deployment plan (add/update/delete operations)
+   - [ ] Selective upload only changed files
+   - [ ] Upload updated metadata files
+
+4. **Deployment EXIF Modification** ⚠️ **CRITICAL REQUIREMENT**
+   - [ ] **Create temporary copies** of photos during deployment
+   - [ ] **Modify EXIF data in copies** (apply DateTimeOriginal offset, set OffsetTimeOriginal to +02:00)
+   - [ ] **Upload corrected copies to S3** (not originals)
+   - [ ] **Preserve originals completely unchanged** for archive/CI purposes
+   - [ ] Use piexif or similar library for EXIF writing
+   - [ ] Test EXIF modification preserves image quality
+
+5. **Deployment Optimization**
+   - [ ] Skip unchanged photos based on hash comparison
+   - [ ] Batch operations for efficiency
+   - [ ] Progress reporting for large deployments
+   - [ ] Rollback capability for failed deployments
+
+## Real-world Deployment Testing **[FUTURE PRIORITY]**
+
+**Objective**: Set up and test production S3/Hetzner bucket with CDN integration.
+
+### S3 Bucket Setup Requirements
+
+1. **Hetzner Object Storage Configuration**
+   - [ ] Create production bucket with appropriate permissions
+   - [ ] Configure CORS for frontend access
+   - [ ] Set up lifecycle policies for optimization
+   - [ ] Document bucket naming and region selection
+
+2. **CDN Integration (BunnyCDN)**
+   - [ ] Configure BunnyCDN origin pointing to Hetzner bucket
+   - [ ] Set up cache rules for photos vs metadata
+   - [ ] Test cache invalidation workflow
+   - [ ] Document CDN configuration
+
+3. **Deployment Validation**
+   - [ ] Test complete pipeline: process → build → deploy
+   - [ ] Verify incremental updates work correctly
+   - [ ] Test rollback procedures
+   - [ ] Performance testing with full 645 photo collection
+
+4. **Production Readiness**
+   - [ ] Set up monitoring and alerting
+   - [ ] Document operational procedures
+   - [ ] Create deployment checklist
+   - [ ] Plan for CI/CD integration
+
+## External Settings Path Verification **[COMPLETED]**
+
+**Task**: Document and verify existing capability for settings files outside project root.
+
+**Current Status**: ✅ COMPLETED - Settings system supports external paths via XDG config specification.
+
+### Verification Results
+
+1. **Existing Implementation Verified** ✅
+   - [x] XDG config directory support confirmed (`settings.py:37-38`)
+   - [x] `GALLERIA_LOCAL_SETTINGS_FILENAME` environment variable works
+   - [x] `XDG_CONFIG_HOME` allows settings outside project root  
+   - [x] Comprehensive test suite exists (`test/test_settings.py`)
+
+2. **Usage Examples** ✅
+   - **Local settings file**: Add `TIMESTAMP_OFFSET_HOURS = -4` to `settings.local.py`
+   - **Environment variable**: `export GALLERIA_TIMESTAMP_OFFSET_HOURS=-4`
+   - **XDG config**: Create `$XDG_CONFIG_HOME/galleria/settings.local.py`
+   - **Precedence**: `defaults → local settings → environment variables`
 
 ## Project Overview
 
