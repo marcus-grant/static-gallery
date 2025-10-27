@@ -140,10 +140,14 @@ class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
                 self.send_error(404, "Gallery not found")
                 return
         
-        # Handle /photos/* routes - serve from prod/pics/
-        elif self.path.startswith("/photos/"):
+        # Handle /photos/* and photos/* routes - serve from prod/pics/
+        elif self.path.startswith("/photos/") or self.path.startswith("photos/"):
             # Map /photos/thumb/file.webp -> prod/pics/thumb/file.webp
-            photo_path = self.path[8:]  # Remove "/photos/"
+            # Also handle photos/thumb/file.webp -> prod/pics/thumb/file.webp
+            if self.path.startswith("/photos/"):
+                photo_path = self.path[8:]  # Remove "/photos/"
+            else:
+                photo_path = self.path[7:]  # Remove "photos/"
             actual_file = Path("..") / "pics" / photo_path
             
             if actual_file.exists():

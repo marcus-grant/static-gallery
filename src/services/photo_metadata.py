@@ -53,9 +53,9 @@ class PhotoMetadataService:
                     "timestamp": metadata["timestamp"],
                     "camera": metadata["camera"],
                     "counter": metadata["counter"],
-                    "thumb_url": f"/photos/thumb/{thumb_filename}",
-                    "web_url": f"/photos/web/{filename}",
-                    "full_url": f"/photos/full/{filename}"
+                    "thumb_url": f"photos/thumb/{thumb_filename}",
+                    "web_url": f"photos/web/{filename}",
+                    "full_url": f"photos/full/{filename}"
                 })
         
         return {"photos": photo_data}
