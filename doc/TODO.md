@@ -143,6 +143,34 @@ See `doc/architecture/static-site-generation.md` for implementation details.
 
 ---
 
+### EXIF Timestamp Correction **[NEXT PRIORITY]**
+
+**Deliverable**: Timezone correction system for camera clock errors
+
+#### Problem Identified
+- Camera EXIF shows `+00:00` (UTC) timezone but timestamps are 4 hours ahead of expected UTC
+- Ceremony at 4:00 PM Swedish time (UTC+2) should be 2:00 PM UTC, but photos show 6:10 PM
+- All 645 photos have systematic 4-hour offset from expected UTC timing
+
+#### Acceptance Criteria
+- [ ] **Settings-based offset**: Add `TIMESTAMP_OFFSET_HOURS` setting (e.g., `-4` hours)
+- [ ] **Processing integration**: Apply offset during `process-photos` command
+- [ ] **EXIF correction**: Modify EXIF data in production bucket copies
+  - Correct `DateTimeOriginal` to proper UTC time
+  - Set `OffsetTimeOriginal` to actual Swedish timezone (`+02:00`)
+  - Preserve original archive files (read-only)
+- [ ] **Upload detection**: Deploy command detects EXIF changes and re-uploads
+- [ ] **CDN invalidation**: Trigger cache refresh when photos change
+- [ ] **Documentation**: Log corrections applied for transparency
+
+#### Implementation Plan
+1. Add timezone offset setting to process-photos workflow
+2. Integrate EXIF correction into production bucket upload
+3. Test upload change detection and CDN invalidation
+4. Validate corrected timestamps work in external photo management software
+
+---
+
 ### BunnyCDN Configuration
 
 **Deliverable**: CDN setup for global content delivery
@@ -151,9 +179,9 @@ See `doc/architecture/static-site-generation.md` for implementation details.
 
 - [ ] BunnyCDN pull zone configured with Hetzner as origin
 - [ ] Proper caching headers set
-- [ ] CDN URLs integrated into static site
+- [x] CDN URLs integrated into static site (simplified to relative URLs)
 - [ ] Performance testing confirms global speed improvement
-- [ ] Create doc/bunnycdn-setup.md with detailed configuration steps
+- [x] Create doc/bunnycdn-setup.md with detailed configuration steps
 - [ ] Update doc/remote-storage-setup.md to link to CDN documentation
 
 #### CDN Configuration Required
@@ -387,31 +415,6 @@ Alpine.data('photoGallery', () => ({
 - [ ] **BunnyCDN Analytics Integration**: Parse CDN access logs for photo popularity tracking
 - [ ] **Popularity-Based Ordering**: Sort photos by download frequency from CDN logs
 
-### EXIF Timestamp Correction **[POST-DEPLOY PRIORITY]**
-
-**Deliverable**: Timezone correction system for camera clock errors
-
-#### Problem Identified
-- Camera EXIF shows `+00:00` (UTC) timezone but timestamps are 4 hours ahead of expected UTC
-- Ceremony at 4:00 PM Swedish time (UTC+2) should be 2:00 PM UTC, but photos show 6:10 PM
-- All 645 photos have systematic 4-hour offset from expected UTC timing
-
-#### Acceptance Criteria
-- [ ] **Settings-based offset**: Add `TIMESTAMP_OFFSET_HOURS` setting (e.g., `-4` hours)
-- [ ] **Processing integration**: Apply offset during `process-photos` command
-- [ ] **EXIF correction**: Modify EXIF data in production bucket copies
-  - Correct `DateTimeOriginal` to proper UTC time
-  - Set `OffsetTimeOriginal` to actual Swedish timezone (`+02:00`)
-  - Preserve original archive files (read-only)
-- [ ] **Upload detection**: Deploy command detects EXIF changes and re-uploads
-- [ ] **CDN invalidation**: Trigger cache refresh when photos change
-- [ ] **Documentation**: Log corrections applied for transparency
-
-#### Implementation Plan
-1. Add timezone offset setting to process-photos workflow
-2. Integrate EXIF correction into production bucket upload
-3. Test upload change detection and CDN invalidation
-4. Validate corrected timestamps work in external photo management software
 
 ### Photo Modal Navigation **[MOVED FROM PRE-DEPLOY]**
 

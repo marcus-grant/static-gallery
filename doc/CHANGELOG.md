@@ -1,5 +1,18 @@
 # Galleria Changelog
 
+## 2025-10-27
+
+### CDN Integration Preparation Completed
+- **Relative URL system**: Simplified URL generation to use `photos/web/photo.jpg` instead of absolute paths
+- **Dev server update**: Added support for relative photo paths alongside existing `/photos/` routes
+- **CDN documentation**: Created `doc/bunnycdn-setup.md` with comprehensive setup guide
+- **Configuration cleanup**: Removed complex CDN toggle system in favor of simple relative URLs
+- **Ready for deployment**: CDN integration prepared for when Hetzner bucket is configured
+
+### Task Prioritization
+- **EXIF timestamp correction**: Moved from post-deploy to next priority task
+- **Documentation update**: Updated TODO.md with accurate completion status and next steps
+
 ## 2025-10-15
 
 ### Build & Deployment Pipeline Completed
