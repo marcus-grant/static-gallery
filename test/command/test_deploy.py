@@ -1,6 +1,7 @@
 """Tests for deploy command."""
 import pytest
 import sys
+import json
 from pathlib import Path
 from unittest.mock import Mock, patch
 from click.testing import CliRunner
@@ -142,3 +143,59 @@ class TestDeployCommandFunctionality:
                         assert mock_deploy.call_count == 1  # Only static site
                         args, kwargs = mock_deploy.call_args
                         assert kwargs['prefix'] == ''
+
+
+class TestDeployCommandEnhanced:
+    """Test enhanced deploy command with metadata-driven deployment."""
+    
+    def test_load_local_gallery_metadata_success(self, tmp_path):
+        """Test loading gallery metadata from local file system."""
+        from src.command.deploy import load_local_gallery_metadata
+        from src.models.photo import GalleryMetadata, GallerySettings, PhotoMetadata, MetadataExifData, MetadataFileData
+        
+        # Create test metadata file
+        prod_dir = tmp_path / "prod" / "pics"
+        prod_dir.mkdir(parents=True)
+        
+        metadata = GalleryMetadata(
+            schema_version="1.0",
+            generated_at="2024-10-28T10:00:00Z",
+            collection="test-collection",
+            settings=GallerySettings(timestamp_offset_hours=-4),
+            photos=[]
+        )
+        
+        metadata_file = prod_dir / "gallery-metadata.json"
+        import json
+        metadata_file.write_text(json.dumps(metadata.to_dict()))
+        
+        # Test loading
+        result = load_local_gallery_metadata(prod_dir)
+        
+        assert isinstance(result, GalleryMetadata)
+        assert result.schema_version == "1.0"
+        assert result.collection == "test-collection"
+        assert result.settings.timestamp_offset_hours == -4
+    
+    def test_load_local_gallery_metadata_file_not_found(self, tmp_path):
+        """Test loading gallery metadata when file doesn't exist."""
+        from src.command.deploy import load_local_gallery_metadata
+        
+        prod_dir = tmp_path / "prod" / "pics"
+        prod_dir.mkdir(parents=True)
+        
+        with pytest.raises(FileNotFoundError):
+            load_local_gallery_metadata(prod_dir)
+    
+    def test_load_local_gallery_metadata_invalid_json(self, tmp_path):
+        """Test loading gallery metadata with invalid JSON."""
+        from src.command.deploy import load_local_gallery_metadata
+        
+        prod_dir = tmp_path / "prod" / "pics"
+        prod_dir.mkdir(parents=True)
+        
+        metadata_file = prod_dir / "gallery-metadata.json"
+        metadata_file.write_text("invalid json content")
+        
+        with pytest.raises(json.JSONDecodeError):
+            load_local_gallery_metadata(prod_dir)

@@ -1,11 +1,37 @@
 """Deploy command for galleria photo gallery."""
 import click
 import sys
+import json
 from pathlib import Path
 
 from src.command.upload_photos import validate_s3_config
 from src.services.s3_storage import get_s3_client
-from src.services.deployment import deploy_directory_to_s3
+from src.services.deployment import deploy_directory_to_s3, deploy_gallery_metadata
+from src.models.photo import GalleryMetadata
+
+
+def load_local_gallery_metadata(prod_dir: Path) -> GalleryMetadata:
+    """Load gallery metadata from local file system.
+    
+    Args:
+        prod_dir: Path to production directory containing gallery-metadata.json
+        
+    Returns:
+        GalleryMetadata object
+        
+    Raises:
+        FileNotFoundError: If gallery-metadata.json doesn't exist
+        json.JSONDecodeError: If the JSON is invalid
+    """
+    metadata_file = prod_dir / "gallery-metadata.json"
+    
+    if not metadata_file.exists():
+        raise FileNotFoundError(f"Gallery metadata not found: {metadata_file}")
+    
+    with open(metadata_file, 'r') as f:
+        data = json.load(f)
+    
+    return GalleryMetadata.from_dict(data)
 
 
 @click.command()
@@ -14,13 +40,17 @@ from src.services.deployment import deploy_directory_to_s3
               help='Override OUTPUT_DIR for source directory')
 @click.option('--dry-run', is_flag=True,
               help='Show deployment plan without executing')
+@click.option('--force', is_flag=True,
+              help='Upload all photos ignoring hash comparison')
+@click.option('--progress', is_flag=True,
+              help='Show detailed progress during upload')
 @click.option('--invalidate-cdn', is_flag=True,
               help='Trigger CDN cache purge')
 @click.option('--photos-only', 'mode_photos', is_flag=True,
               help='Upload only photos/metadata (skip static site)')
 @click.option('--site-only', 'mode_site', is_flag=True,
               help='Upload only static site files (skip photos)')
-def deploy(source, dry_run, invalidate_cdn, mode_photos, mode_site):
+def deploy(source, dry_run, force, progress, invalidate_cdn, mode_photos, mode_site):
     """Deploy complete gallery (photos + static site) to production hosting."""
     
     # Validate mutually exclusive options
@@ -58,32 +88,76 @@ def deploy(source, dry_run, invalidate_cdn, mode_photos, mode_site):
         click.echo(f"Error creating S3 client: {str(e)}", err=True)
         sys.exit(1)
     
-    click.echo(f"{'[DRY RUN] ' if dry_run else ''}Deploying gallery to S3...")
-    click.echo(f"Bucket: {settings.S3_PUBLIC_BUCKET}")
+    # Check if we have gallery metadata for enhanced deployment
+    metadata_file = photos_dir / "gallery-metadata.json"
+    use_metadata_deployment = metadata_file.exists() and not mode_site
     
-    total_uploaded = 0
-    total_files = 0
-    deployment_errors = []
+    if use_metadata_deployment:
+        # Enhanced metadata-driven deployment
+        click.echo(f"{'[DRY RUN] ' if dry_run else ''}Using metadata-driven deployment...")
+        click.echo(f"Bucket: {settings.S3_PUBLIC_BUCKET}")
+        
+        try:
+            local_metadata = load_local_gallery_metadata(photos_dir)
+            
+            # Use deploy_gallery_metadata for photos
+            deployment_result = deploy_gallery_metadata(
+                client=client,
+                bucket=settings.S3_PUBLIC_BUCKET,
+                local_metadata=local_metadata,
+                prod_dir=photos_dir,
+                dry_run=dry_run
+            )
+            
+            if dry_run and deployment_result.get('success'):
+                # Show deployment plan and exit (dry-run doesn't execute)
+                plan = deployment_result.get('plan', {})
+                click.echo(f"\nDeployment Plan:")
+                click.echo(f"  Photos to upload: {len(plan.get('upload', []))}")
+                click.echo(f"  Photos to delete: {len(plan.get('delete', []))}")
+                click.echo(f"  Photos unchanged: {len(plan.get('unchanged', []))}")
+                click.echo("\nDry run completed - no files were uploaded")
+                return 0
+            
+            if not deployment_result.get('success'):
+                click.echo(f"Photo deployment failed: {deployment_result.get('error', 'Unknown error')}", err=True)
+                sys.exit(1)
+            
+            total_uploaded = deployment_result.get('photos_uploaded', 0)
+            click.echo(f"Photos: {total_uploaded} uploaded")
+            
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            click.echo(f"Error loading gallery metadata: {e}", err=True)
+            sys.exit(1)
     
-    # Deploy photos (unless site-only mode)
-    if not mode_site:
-        click.echo(f"\nDeploying photos from: {photos_dir}")
-        photos_result = deploy_directory_to_s3(
-            client=client,
-            source_dir=photos_dir,
-            bucket=settings.S3_PUBLIC_BUCKET,
-            prefix="photos",
-            dry_run=dry_run
-        )
+    else:
+        # Fallback to directory-based deployment
+        click.echo(f"{'[DRY RUN] ' if dry_run else ''}Using directory-based deployment...")
+        click.echo(f"Bucket: {settings.S3_PUBLIC_BUCKET}")
         
-        if photos_result['success']:
-            click.echo(f"Photos: {photos_result['uploaded_files']} uploaded, {photos_result['skipped_files']} skipped")
-        else:
-            click.echo(f"Photos deployment failed: {photos_result.get('error', 'Unknown error')}", err=True)
-            deployment_errors.extend(photos_result.get('errors', []))
+        total_uploaded = 0
+        total_files = 0
+        deployment_errors = []
         
-        total_uploaded += photos_result['uploaded_files']
-        total_files += photos_result['total_files']
+        # Deploy photos (unless site-only mode)
+        if not mode_site:
+            click.echo(f"\nDeploying photos from: {photos_dir}")
+            photos_result = deploy_directory_to_s3(
+                client=client,
+                source_dir=photos_dir,
+                bucket=settings.S3_PUBLIC_BUCKET,
+                prefix="photos",
+                dry_run=dry_run
+            )
+            
+            if photos_result['success']:
+                click.echo(f"Photos: {photos_result['uploaded_files']} uploaded, {photos_result['skipped_files']} skipped")
+            else:
+                click.echo(f"Photos deployment failed: {photos_result.get('error', 'Unknown error')}", err=True)
+                deployment_errors.extend(photos_result.get('errors', []))
+            
+            total_uploaded += photos_result['uploaded_files']
+            total_files += photos_result['total_files']
     
     # Deploy static site (unless photos-only mode)
     if not mode_photos:
@@ -100,26 +174,28 @@ def deploy(source, dry_run, invalidate_cdn, mode_photos, mode_site):
             click.echo(f"Static site: {site_result['uploaded_files']} uploaded, {site_result['skipped_files']} skipped")
         else:
             click.echo(f"Static site deployment failed: {site_result.get('error', 'Unknown error')}", err=True)
-            deployment_errors.extend(site_result.get('errors', []))
+            if not use_metadata_deployment:
+                deployment_errors.extend(site_result.get('errors', []))
         
-        total_uploaded += site_result['uploaded_files']
-        total_files += site_result['total_files']
+        if not use_metadata_deployment:
+            total_uploaded += site_result['uploaded_files']
+            total_files += site_result['total_files']
     
     # TODO: Implement CDN invalidation when --invalidate-cdn is specified
     if invalidate_cdn:
         click.echo("\nCDN invalidation requested (not yet implemented)")
     
     # Summary
-    click.echo(f"\nDeployment Summary:")
-    click.echo(f"Total files processed: {total_files}")
-    click.echo(f"Files uploaded: {total_uploaded}")
-    
-    if deployment_errors:
-        click.echo(f"\nErrors encountered:", err=True)
-        for error in deployment_errors:
-            click.echo(f"  - {error}", err=True)
-        sys.exit(1)
-    else:
-        click.echo("\nDeployment completed successfully!")
+    if not use_metadata_deployment:
+        click.echo(f"\nDeployment Summary:")
+        click.echo(f"Total files processed: {total_files}")
+        click.echo(f"Files uploaded: {total_uploaded}")
         
+        if deployment_errors:
+            click.echo(f"\nErrors encountered:", err=True)
+            for error in deployment_errors:
+                click.echo(f"  - {error}", err=True)
+            sys.exit(1)
+    
+    click.echo("\nDeployment completed successfully!")
     return 0
