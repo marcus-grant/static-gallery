@@ -36,8 +36,7 @@ working, acceptable user experience deployed quickly.
 
 ### Architecture & Implementation  
 - **[Static Site Generation](./architecture/static-site-generation.md)** - Template system, build process, and development server
-- **[UUID Service](./services/uuid_service.md)** - Photo UUID generation service 
-  with RFC 9562 UUIDv7, Base32 encoding, and chronological ordering
+- **[Services Documentation](./services/README.md)** - Service layer components and core business logic implementations
 
 ### Utilities & Implementation Notes
 - **[UUIDv7 Implementation](./util/UUIDv7.md)** - RFC 9562 compliance, Python 

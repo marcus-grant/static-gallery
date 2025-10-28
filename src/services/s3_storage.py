@@ -1,8 +1,12 @@
 import boto3
 import hashlib
+import io
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Callable, Dict, Any
 from botocore.exceptions import ClientError
+from PIL import Image
+import piexif
 
 
 def get_s3_client(endpoint: str, access_key: str, secret_key: str, region: str):
@@ -219,3 +223,59 @@ def upload_directory_to_s3(
     
     result['success'] = result['failed_files'] == 0
     return result
+
+
+def modify_exif_in_memory(
+    image_bytes: bytes, 
+    corrected_timestamp: datetime, 
+    target_timezone_offset_hours: int
+) -> bytes:
+    """Modify EXIF data in memory with corrected timestamp and timezone.
+    
+    Args:
+        image_bytes: Original image data as bytes
+        corrected_timestamp: Corrected timestamp to set in DateTimeOriginal
+        target_timezone_offset_hours: Target timezone offset in hours
+                                    (13 = preserve original timezone)
+    
+    Returns:
+        Modified image bytes with updated EXIF data
+        
+    Raises:
+        Exception: If image cannot be processed or EXIF modification fails
+    """
+    # Load the image and EXIF data
+    img = Image.open(io.BytesIO(image_bytes))
+    
+    try:
+        exif_dict = piexif.load(image_bytes)
+    except piexif.InvalidImageDataError:
+        # Create empty EXIF dict if none exists
+        exif_dict = {
+            "0th": {},
+            "Exif": {},
+            "1st": {},
+            "GPS": {},
+        }
+    
+    # Update DateTimeOriginal with corrected timestamp
+    datetime_str = corrected_timestamp.strftime("%Y:%m:%d %H:%M:%S")
+    exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = datetime_str.encode()
+    
+    # Handle timezone offset
+    if target_timezone_offset_hours != 13:
+        # Format timezone offset as ±HH:MM per EXIF 2.31 standard
+        sign = "+" if target_timezone_offset_hours >= 0 else "-"
+        hours = abs(target_timezone_offset_hours)
+        timezone_str = f"{sign}{hours:02d}:00"
+        exif_dict["Exif"][piexif.ExifIFD.OffsetTimeOriginal] = timezone_str.encode()
+    # If target_timezone_offset_hours == 13, preserve original timezone (don't modify)
+    
+    # Convert EXIF dict back to bytes
+    exif_bytes = piexif.dump(exif_dict)
+    
+    # Save image with modified EXIF to bytes
+    output_buffer = io.BytesIO()
+    img.save(output_buffer, format='JPEG', exif=exif_bytes)
+    
+    return output_buffer.getvalue()

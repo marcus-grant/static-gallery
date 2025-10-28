@@ -79,6 +79,7 @@ def test_photo_metadata_service_reads_from_json_metadata(tmp_path):
                 "id": "wedding-20240810T143045-r5a-0",
                 "original_path": "pics-full/IMG_001.jpg",
                 "file_hash": "abc123def456",
+                "deployment_file_hash": "deployment123def456",
                 "exif": {
                     "original_timestamp": "2024-08-10T18:30:45",
                     "corrected_timestamp": "2024-08-10T14:30:45", 
@@ -96,6 +97,7 @@ def test_photo_metadata_service_reads_from_json_metadata(tmp_path):
                 "id": "wedding-20240810T144500-r5a-0",
                 "original_path": "pics-full/IMG_002.jpg",
                 "file_hash": "def456ghi789",
+                "deployment_file_hash": "deployment456ghi789",
                 "exif": {
                     "original_timestamp": "2024-08-10T18:45:00",
                     "corrected_timestamp": "2024-08-10T14:45:00",

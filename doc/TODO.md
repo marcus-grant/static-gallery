@@ -32,9 +32,11 @@
 
 **Note**: Alpine.js functionality is planned for post-deployment. Current priority is idempotent deployment system.
 
-**Current System State (2025-10-28)**:
+**Current System State (2025-10-28 - Latest Commit: 2839ffc)**:
 - ✅ **EXIF timestamp correction** - Complete with -4 hour offset applied to all processing
 - ✅ **JSON metadata system** - Complete with type-safe dataclasses and file hash calculation  
+- ✅ **Dual-hash metadata system** - PhotoMetadata now has both `file_hash` and `deployment_file_hash` fields
+- ✅ **Timezone settings** - Added `TARGET_TIMEZONE_OFFSET_HOURS = 13` (13 = preserve original timezone)
 - ✅ **PhotoMetadataService** - Supports both filename parsing and JSON metadata reading
 - ✅ **Template debug service** - Fixed to use generic render() method
 - ✅ **Integration testing** - Full round-trip from photo processing to metadata consumption
@@ -42,7 +44,58 @@
 - ✅ **File hash calculation** - SHA256 hashes of original files for change detection
 - ✅ **Filename generation** - Reflects corrected timestamps (with offset applied)
 
-**Key Architecture**: JSON metadata stores original + corrected timestamps and file hashes. During deployment, original files will be streamed → EXIF modified in memory → uploaded directly (no local storage of modified copies).
+**Key Architecture**: JSON metadata stores original + corrected timestamps and dual file hashes. During deployment, original files will be streamed → EXIF modified in memory → uploaded directly (no local storage of modified copies).
+
+**🚧 CURRENT DEVELOPMENT STATUS**:
+- **Phase 1 & 2 COMPLETE**: Settings and dual-hash metadata infrastructure ready
+- **Phase 3 COMPLETE**: EXIF modification and deployment hash calculation implemented
+- **Phase 4 READY**: Deployment orchestration can now be implemented using the dual-hash system
+
+**🔧 FOR NEW DEVELOPERS - CURRENT IMPLEMENTATION STATE**:
+
+**What's implemented:**
+- ✅ `TARGET_TIMEZONE_OFFSET_HOURS` setting with full test coverage (`test/test_settings.py`)
+- ✅ `PhotoMetadata` dataclass has `deployment_file_hash` field (`src/models/photo.py`)
+- ✅ `GalleryMetadata.from_dict()` handles both hash fields correctly
+- ✅ `modify_exif_in_memory()` function implemented (`src/services/s3_storage.py`)
+- ✅ Deployment hash calculation implemented (`src/services/file_processing.py:258-285`)
+- ✅ Comprehensive test suite for EXIF modification (`test/services/test_s3_storage.py`)
+- ✅ Integration tests for dual-hash system (`test/test_dual_hash_integration.py`)
+- ✅ Complete documentation for metadata consistency system
+
+**Key files to understand:**
+- `src/models/photo.py` - PhotoMetadata structure with dual hashes
+- `src/services/s3_storage.py` - modify_exif_in_memory() function
+- `src/services/file_processing.py` - Lines 258-285: deployment hash calculation
+- `settings.py` - Line 58: TARGET_TIMEZONE_OFFSET_HOURS setting
+- `doc/architecture/metadata-consistency.md` - Complete system documentation
+
+**Phase 3 Complete - Dual Timezone System Implemented:**
+
+**Dual Timezone System Explanation:**
+- **`TIMESTAMP_OFFSET_HOURS`**: Corrects systematic camera time errors ✅ IMPLEMENTED
+  - Example: Camera was set 2 hours fast → offset = -2 to correct
+- **`TARGET_TIMEZONE_OFFSET_HOURS`**: Sets actual timezone context for deployment ✅ IMPLEMENTED
+  - Writes timezone info to EXIF `OffsetTimeOriginal` field per EXIF 2.31 standard
+  - Format: `±HH:MM` (e.g., `-05:00` for EST, `+02:00` for CET)
+  - Special value 13 = preserve original timezone (don't modify `OffsetTimeOriginal`)
+- **Combined Logic**: corrected timestamp + timezone context = complete local time information ✅ IMPLEMENTED
+
+✅ **Completed Phase 3 Tasks:**
+1. ✅ **`modify_exif_in_memory()` implemented in `src/services/s3_storage.py`**:
+   - Function signature: `modify_exif_in_memory(image_bytes, corrected_timestamp, target_timezone_offset_hours) -> bytes`
+   - Uses `piexif` library for in-memory EXIF modification
+   - Applies corrected timestamp to `DateTimeOriginal`
+   - Applies timezone offset to `OffsetTimeOriginal` in `±HH:MM` format (unless offset = 13)
+   - Complies with EXIF 2.31 standard for timezone information
+2. ✅ **Deployment hash calculation implemented in `src/services/file_processing.py:258-285`**:
+   - Simulates EXIF modification during processing using both timezone settings
+   - Calculates hash of modified image bytes (reflects both timestamp correction and timezone)
+   - Stores as `deployment_file_hash` with error fallback
+3. ✅ **Comprehensive test suite implemented**:
+   - `test/services/test_s3_storage.py::TestExifModification` (8 tests)
+   - `test/test_dual_hash_integration.py` (5 integration tests)
+   - Full documentation in `doc/architecture/metadata-consistency.md`
 
 ## Current JSON Metadata System **[FOR NEW DEVELOPERS]**
 
@@ -76,17 +129,17 @@
 
 **Key Innovation**: Calculate both original file hash and deployment file hash (after EXIF corrections) during photo processing, enabling accurate change detection for deployment.
 
-### Phase 1: Settings Enhancement
-- [ ] **Add timezone setting**: `TARGET_TIMEZONE_OFFSET_HOURS = 13` (13 = preserve original timezone)
-- [ ] **Environment variable support**: `GALLERIA_TARGET_TIMEZONE_OFFSET_HOURS`
-- [ ] **Test settings loading** and validation
+### Phase 1: Settings Enhancement ✅ **COMPLETED**
+- [x] **Add timezone setting**: `TARGET_TIMEZONE_OFFSET_HOURS = 13` (13 = preserve original timezone)
+- [x] **Environment variable support**: `GALLERIA_TARGET_TIMEZONE_OFFSET_HOURS`
+- [x] **Test settings loading** and validation
 
-### Phase 2: Dual Hash Metadata System  
-- [ ] **Enhance PhotoMetadata dataclass** with `deployment_file_hash` field
-- [ ] **Update file_processing.py** to calculate both hashes:
+### Phase 2: Dual Hash Metadata System ✅ **COMPLETED**
+- [x] **Enhance PhotoMetadata dataclass** with `deployment_file_hash` field
+- [x] **Update file_processing.py** to calculate both hashes:
   - `original_file_hash` (existing) - hash of source file
-  - `deployment_file_hash` (new) - hash after EXIF modifications applied
-- [ ] **Test metadata serialization** with both hashes
+  - `deployment_file_hash` (placeholder) - will be hash after EXIF modifications applied
+- [x] **Test metadata serialization** with both hashes
 
 ### Phase 3: EXIF Stream Processing
 - [ ] **Add `modify_exif_in_memory()`** to `s3_storage.py` for real-time EXIF modification

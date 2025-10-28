@@ -17,7 +17,12 @@
 - Task management:
   - Each test typically corresponds to a TODO task
   - Some tasks require multiple tests
-  - After test(s) pass and refactors complete: update TODO.md, git commit
+  - After test(s) pass and refactors complete: update TODO.md, update documentation, git commit
+- Documentation updates (Green phase):
+  - When tests pass, update relevant documentation in `doc/`
+  - Follow documentation hierarchy: documents link to same-level README → subdirectory README → parent README
+  - Only top-level README provides high-level overviews and links to directory-level or subdirectory READMEs
+  - Each README describes its directory's topic and links to documents at same level or subdirectory READMEs
 - Implement in small steps with clear logical breaks:
   - Add one test case or feature at a time
   - Test immediately after each testable addition

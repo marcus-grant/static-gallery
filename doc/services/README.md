@@ -5,6 +5,7 @@ This directory contains documentation for Galleria's service layer components an
 ## Services
 
 - **[UUID Service](uuid_service.md)** - Photo UUID generation with RFC 9562 UUIDv7, Base32 encoding, and chronological ordering
+- **[EXIF Modification Service](exif_modification.md)** - In-memory EXIF modification with dual timezone handling and deployment hash calculation
 
 ## Overview
 

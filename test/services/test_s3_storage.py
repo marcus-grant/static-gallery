@@ -2,9 +2,14 @@
 import pytest
 from pathlib import Path
 from unittest.mock import Mock
+from datetime import datetime
+import hashlib
+import io
 import boto3
 from moto import mock_aws
 from botocore.exceptions import ClientError
+from PIL import Image
+import piexif
 
 from src.services.s3_storage import (
     get_s3_client,
@@ -12,7 +17,8 @@ from src.services.s3_storage import (
     calculate_file_checksum,
     upload_file_to_s3,
     list_bucket_files,
-    upload_directory_to_s3
+    upload_directory_to_s3,
+    modify_exif_in_memory
 )
 
 
@@ -354,3 +360,250 @@ class TestDirectoryUpload:
         assert result['success']
         assert result['total_files'] == 0
         assert result['uploaded_files'] == 0
+
+
+@pytest.fixture
+def create_test_image_with_exif():
+    """Factory fixture to create test images with custom EXIF data."""
+    
+    def _create_image(**exif_tags):
+        # Create a simple test image
+        img = Image.new("RGB", (100, 100), color="red")
+        
+        # Build EXIF dict from kwargs
+        exif_dict = {
+            "0th": {},
+            "Exif": {},
+            "1st": {},
+            "GPS": {},
+        }
+        
+        # Add tags based on kwargs
+        for tag_name, value in exif_tags.items():
+            if tag_name == "DateTimeOriginal":
+                exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = (
+                    value.encode() if isinstance(value, str) else value
+                )
+            elif tag_name == "OffsetTimeOriginal":
+                exif_dict["Exif"][piexif.ExifIFD.OffsetTimeOriginal] = (
+                    value.encode() if isinstance(value, str) else value
+                )
+            elif tag_name == "Make":
+                exif_dict["0th"][piexif.ImageIFD.Make] = (
+                    value.encode() if isinstance(value, str) else value
+                )
+            elif tag_name == "Model":
+                exif_dict["0th"][piexif.ImageIFD.Model] = (
+                    value.encode() if isinstance(value, str) else value
+                )
+        
+        # Convert EXIF dict to bytes
+        exif_bytes = piexif.dump(exif_dict)
+        
+        # Save image to bytes with EXIF
+        img_buffer = io.BytesIO()
+        img.save(img_buffer, format='JPEG', exif=exif_bytes)
+        return img_buffer.getvalue()
+    
+    return _create_image
+
+
+class TestExifModification:
+    """Test EXIF modification functionality."""
+    
+    def test_modify_exif_updates_datetime_original(self, create_test_image_with_exif):
+        """Test that modify_exif_in_memory updates DateTimeOriginal."""
+        # Create test image with original timestamp
+        original_image_bytes = create_test_image_with_exif(
+            DateTimeOriginal="2023:12:25 10:30:45"
+        )
+        
+        # New corrected timestamp
+        corrected_timestamp = datetime(2023, 12, 25, 8, 30, 45)  # 2 hours earlier
+        target_timezone_offset_hours = -5  # EST timezone
+        
+        # Modify EXIF
+        modified_image_bytes = modify_exif_in_memory(
+            original_image_bytes, 
+            corrected_timestamp, 
+            target_timezone_offset_hours
+        )
+        
+        # Verify modification
+        exif_dict = piexif.load(modified_image_bytes)
+        modified_datetime = exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal].decode()
+        
+        assert modified_datetime == "2023:12:25 08:30:45"
+    
+    def test_modify_exif_sets_timezone_offset(self, create_test_image_with_exif):
+        """Test that modify_exif_in_memory sets OffsetTimeOriginal correctly."""
+        original_image_bytes = create_test_image_with_exif(
+            DateTimeOriginal="2023:12:25 10:30:45"
+        )
+        
+        corrected_timestamp = datetime(2023, 12, 25, 10, 30, 45)
+        target_timezone_offset_hours = -5  # EST timezone
+        
+        modified_image_bytes = modify_exif_in_memory(
+            original_image_bytes, 
+            corrected_timestamp, 
+            target_timezone_offset_hours
+        )
+        
+        # Verify timezone offset was set
+        exif_dict = piexif.load(modified_image_bytes)
+        offset_time = exif_dict["Exif"][piexif.ExifIFD.OffsetTimeOriginal].decode()
+        
+        assert offset_time == "-05:00"
+    
+    def test_modify_exif_positive_timezone_offset(self, create_test_image_with_exif):
+        """Test positive timezone offset formatting."""
+        original_image_bytes = create_test_image_with_exif(
+            DateTimeOriginal="2023:12:25 10:30:45"
+        )
+        
+        corrected_timestamp = datetime(2023, 12, 25, 10, 30, 45)
+        target_timezone_offset_hours = 2  # CET timezone
+        
+        modified_image_bytes = modify_exif_in_memory(
+            original_image_bytes, 
+            corrected_timestamp, 
+            target_timezone_offset_hours
+        )
+        
+        exif_dict = piexif.load(modified_image_bytes)
+        offset_time = exif_dict["Exif"][piexif.ExifIFD.OffsetTimeOriginal].decode()
+        
+        assert offset_time == "+02:00"
+    
+    def test_modify_exif_preserves_original_timezone_when_offset_13(self, create_test_image_with_exif):
+        """Test that offset 13 preserves original timezone."""
+        original_image_bytes = create_test_image_with_exif(
+            DateTimeOriginal="2023:12:25 10:30:45",
+            OffsetTimeOriginal="+01:00"  # Original timezone
+        )
+        
+        corrected_timestamp = datetime(2023, 12, 25, 8, 30, 45)
+        target_timezone_offset_hours = 13  # Special "preserve original" value
+        
+        modified_image_bytes = modify_exif_in_memory(
+            original_image_bytes, 
+            corrected_timestamp, 
+            target_timezone_offset_hours
+        )
+        
+        # Verify timestamp was updated but timezone preserved
+        exif_dict = piexif.load(modified_image_bytes)
+        modified_datetime = exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal].decode()
+        offset_time = exif_dict["Exif"][piexif.ExifIFD.OffsetTimeOriginal].decode()
+        
+        assert modified_datetime == "2023:12:25 08:30:45"
+        assert offset_time == "+01:00"  # Original timezone preserved
+    
+    def test_modify_exif_handles_missing_original_timezone_with_offset_13(self, create_test_image_with_exif):
+        """Test that offset 13 doesn't add timezone if none exists."""
+        original_image_bytes = create_test_image_with_exif(
+            DateTimeOriginal="2023:12:25 10:30:45"
+            # No OffsetTimeOriginal tag
+        )
+        
+        corrected_timestamp = datetime(2023, 12, 25, 8, 30, 45)
+        target_timezone_offset_hours = 13  # Special "preserve original" value
+        
+        modified_image_bytes = modify_exif_in_memory(
+            original_image_bytes, 
+            corrected_timestamp, 
+            target_timezone_offset_hours
+        )
+        
+        # Verify timestamp was updated but no timezone was added
+        exif_dict = piexif.load(modified_image_bytes)
+        modified_datetime = exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal].decode()
+        
+        assert modified_datetime == "2023:12:25 08:30:45"
+        # Should not have OffsetTimeOriginal tag
+        assert piexif.ExifIFD.OffsetTimeOriginal not in exif_dict["Exif"]
+    
+    def test_modify_exif_preserves_other_exif_data(self, create_test_image_with_exif):
+        """Test that modify_exif_in_memory preserves other EXIF data."""
+        original_image_bytes = create_test_image_with_exif(
+            DateTimeOriginal="2023:12:25 10:30:45",
+            Make="Canon",
+            Model="EOS R5"
+        )
+        
+        corrected_timestamp = datetime(2023, 12, 25, 8, 30, 45)
+        target_timezone_offset_hours = -5
+        
+        modified_image_bytes = modify_exif_in_memory(
+            original_image_bytes, 
+            corrected_timestamp, 
+            target_timezone_offset_hours
+        )
+        
+        # Verify other EXIF data was preserved
+        exif_dict = piexif.load(modified_image_bytes)
+        make = exif_dict["0th"][piexif.ImageIFD.Make].decode()
+        model = exif_dict["0th"][piexif.ImageIFD.Model].decode()
+        
+        assert make == "Canon"
+        assert model == "EOS R5"
+    
+    def test_modify_exif_preserves_image_quality(self, create_test_image_with_exif):
+        """Test that image data is preserved during EXIF modification."""
+        original_image_bytes = create_test_image_with_exif(
+            DateTimeOriginal="2023:12:25 10:30:45"
+        )
+        
+        # Calculate hash of original image data (without EXIF)
+        original_img = Image.open(io.BytesIO(original_image_bytes))
+        original_img_buffer = io.BytesIO()
+        original_img.save(original_img_buffer, format='JPEG')
+        original_hash = hashlib.sha256(original_img_buffer.getvalue()).hexdigest()
+        
+        corrected_timestamp = datetime(2023, 12, 25, 8, 30, 45)
+        target_timezone_offset_hours = -5
+        
+        modified_image_bytes = modify_exif_in_memory(
+            original_image_bytes, 
+            corrected_timestamp, 
+            target_timezone_offset_hours
+        )
+        
+        # Calculate hash of modified image data (without EXIF)
+        modified_img = Image.open(io.BytesIO(modified_image_bytes))
+        modified_img_buffer = io.BytesIO()
+        modified_img.save(modified_img_buffer, format='JPEG')
+        modified_hash = hashlib.sha256(modified_img_buffer.getvalue()).hexdigest()
+        
+        # Image data should be identical (only EXIF changed)
+        assert original_hash == modified_hash
+    
+    def test_modify_exif_hash_changes_with_different_settings(self, create_test_image_with_exif):
+        """Test that deployment hash changes when timezone settings change."""
+        original_image_bytes = create_test_image_with_exif(
+            DateTimeOriginal="2023:12:25 10:30:45"
+        )
+        
+        corrected_timestamp = datetime(2023, 12, 25, 8, 30, 45)
+        
+        # Modify with different timezone settings
+        modified_bytes_est = modify_exif_in_memory(
+            original_image_bytes, corrected_timestamp, -5
+        )
+        modified_bytes_cet = modify_exif_in_memory(
+            original_image_bytes, corrected_timestamp, 2
+        )
+        modified_bytes_preserve = modify_exif_in_memory(
+            original_image_bytes, corrected_timestamp, 13
+        )
+        
+        # Calculate hashes
+        hash_est = hashlib.sha256(modified_bytes_est).hexdigest()
+        hash_cet = hashlib.sha256(modified_bytes_cet).hexdigest()
+        hash_preserve = hashlib.sha256(modified_bytes_preserve).hexdigest()
+        
+        # All hashes should be different
+        assert hash_est != hash_cet
+        assert hash_est != hash_preserve
+        assert hash_cet != hash_preserve

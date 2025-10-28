@@ -255,9 +255,34 @@ def generate_gallery_metadata(photos: List[ProcessedPhoto], collection_name: str
             thumb=photo.generated_filename.replace('.jpg', '.webp').replace('.jpeg', '.webp') if photo.generated_filename else ""
         )
         
-        # TODO: Calculate actual deployment file hash after EXIF modification simulation
-        # For now, use the original hash as placeholder until EXIF modification is implemented
+        # Calculate deployment file hash after EXIF modification simulation
         deployment_hash = photo.file_hash or ""
+        if photo.file_hash and corrected_timestamp:
+            try:
+                # Read original image bytes
+                with open(photo.path, 'rb') as f:
+                    original_image_bytes = f.read()
+                
+                # Import here to avoid circular imports
+                from src.services.s3_storage import modify_exif_in_memory
+                
+                # Get target timezone setting
+                target_timezone_offset_hours = getattr(settings, 'TARGET_TIMEZONE_OFFSET_HOURS', 13)
+                
+                # Simulate EXIF modification for deployment
+                modified_image_bytes = modify_exif_in_memory(
+                    original_image_bytes,
+                    corrected_timestamp,
+                    target_timezone_offset_hours
+                )
+                
+                # Calculate hash of modified image bytes
+                import hashlib
+                deployment_hash = hashlib.sha256(modified_image_bytes).hexdigest()
+                
+            except Exception:
+                # If EXIF modification fails, fall back to original hash
+                deployment_hash = photo.file_hash or ""
         
         photo_meta = PhotoMetadata(
             id=photo_id,
