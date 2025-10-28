@@ -98,6 +98,7 @@ class PhotoMetadata:
     id: str
     original_path: str
     file_hash: str
+    deployment_file_hash: str
     exif: MetadataExifData
     files: MetadataFileData
 
@@ -132,6 +133,7 @@ class GalleryMetadata:
                 id=p["id"],
                 original_path=p["original_path"],
                 file_hash=p["file_hash"],
+                deployment_file_hash=p["deployment_file_hash"],
                 exif=MetadataExifData(**p["exif"]),
                 files=MetadataFileData(**p["files"])
             )

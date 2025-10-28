@@ -259,3 +259,128 @@ class TestModelHelpers:
         assert restored_photo.path == Path("/pics/test.jpg")
         assert restored_photo.camera.make == "Test"
         assert restored_photo.exif.timestamp == datetime(2024, 10, 5, 12, 0, 0)
+
+
+class TestPhotoMetadata:
+    """Test PhotoMetadata dataclass for gallery JSON metadata."""
+    
+    def test_photo_metadata_creation_with_dual_hashes(self):
+        """Test creating PhotoMetadata with both original and deployment file hashes."""
+        from src.models.photo import PhotoMetadata, MetadataExifData, MetadataFileData
+        
+        exif_data = MetadataExifData(
+            original_timestamp="2024-08-10T18:30:45",
+            corrected_timestamp="2024-08-10T14:30:45",
+            timezone_original="+00:00",
+            camera={"make": "Canon", "model": "EOS R5"},
+            subsecond=None
+        )
+        
+        files_data = MetadataFileData(
+            full="full/wedding-20240810T143045-r5a-0.jpg",
+            web="web/wedding-20240810T143045-r5a-0.jpg", 
+            thumb="wedding-20240810T143045-r5a-0.webp"
+        )
+        
+        photo_meta = PhotoMetadata(
+            id="wedding-20240810T143045-r5a-0",
+            original_path="/path/to/IMG_001.jpg",
+            file_hash="abc123original",
+            deployment_file_hash="def456deployment",
+            exif=exif_data,
+            files=files_data
+        )
+        
+        assert photo_meta.file_hash == "abc123original"
+        assert photo_meta.deployment_file_hash == "def456deployment"
+        assert photo_meta.id == "wedding-20240810T143045-r5a-0"
+    
+    def test_photo_metadata_serialization_with_dual_hashes(self):
+        """Test that PhotoMetadata with dual hashes serializes correctly."""
+        from src.models.photo import PhotoMetadata, MetadataExifData, MetadataFileData
+        
+        exif_data = MetadataExifData(
+            original_timestamp="2024-08-10T18:30:45",
+            corrected_timestamp="2024-08-10T14:30:45", 
+            timezone_original="+00:00",
+            camera={"make": "Canon", "model": "EOS R5"},
+            subsecond=None
+        )
+        
+        files_data = MetadataFileData(
+            full="full/test.jpg",
+            web="web/test.jpg",
+            thumb="test.webp"
+        )
+        
+        photo_meta = PhotoMetadata(
+            id="test-photo",
+            original_path="/original/test.jpg",
+            file_hash="original_hash_123",
+            deployment_file_hash="deploy_hash_456",
+            exif=exif_data,
+            files=files_data
+        )
+        
+        # Convert to dict for JSON serialization
+        meta_dict = asdict(photo_meta)
+        
+        assert meta_dict["file_hash"] == "original_hash_123"
+        assert meta_dict["deployment_file_hash"] == "deploy_hash_456"
+        assert "exif" in meta_dict
+        assert "files" in meta_dict
+        
+        # Ensure it's JSON serializable
+        json_str = json.dumps(meta_dict)
+        assert "original_hash_123" in json_str
+        assert "deploy_hash_456" in json_str
+    
+    def test_gallery_metadata_with_dual_hash_photos(self):
+        """Test that GalleryMetadata handles photos with dual hashes correctly."""
+        from src.models.photo import (
+            GalleryMetadata, GallerySettings, PhotoMetadata, 
+            MetadataExifData, MetadataFileData
+        )
+        
+        settings = GallerySettings(timestamp_offset_hours=-4)
+        
+        photo_meta = PhotoMetadata(
+            id="test-photo-1",
+            original_path="/src/IMG_001.jpg",
+            file_hash="hash_original_001",
+            deployment_file_hash="hash_deploy_001",
+            exif=MetadataExifData(
+                original_timestamp="2024-08-10T18:30:45",
+                corrected_timestamp="2024-08-10T14:30:45",
+                timezone_original="+00:00",
+                camera={"make": "Canon", "model": "EOS R5"},
+                subsecond=None
+            ),
+            files=MetadataFileData(
+                full="full/test-001.jpg",
+                web="web/test-001.jpg",
+                thumb="test-001.webp"
+            )
+        )
+        
+        gallery_meta = GalleryMetadata(
+            schema_version="1.0",
+            generated_at="2025-10-28T10:00:00Z",
+            collection="test-collection",
+            settings=settings,
+            photos=[photo_meta]
+        )
+        
+        # Test to_dict method includes dual hashes
+        meta_dict = gallery_meta.to_dict()
+        photo_dict = meta_dict["photos"][0]
+        
+        assert photo_dict["file_hash"] == "hash_original_001"
+        assert photo_dict["deployment_file_hash"] == "hash_deploy_001"
+        
+        # Test from_dict method preserves dual hashes
+        restored_meta = GalleryMetadata.from_dict(meta_dict)
+        restored_photo = restored_meta.photos[0]
+        
+        assert restored_photo.file_hash == "hash_original_001"
+        assert restored_photo.deployment_file_hash == "hash_deploy_001"

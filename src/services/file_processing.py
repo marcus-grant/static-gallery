@@ -255,10 +255,15 @@ def generate_gallery_metadata(photos: List[ProcessedPhoto], collection_name: str
             thumb=photo.generated_filename.replace('.jpg', '.webp').replace('.jpeg', '.webp') if photo.generated_filename else ""
         )
         
+        # TODO: Calculate actual deployment file hash after EXIF modification simulation
+        # For now, use the original hash as placeholder until EXIF modification is implemented
+        deployment_hash = photo.file_hash or ""
+        
         photo_meta = PhotoMetadata(
             id=photo_id,
             original_path=str(photo.path),
             file_hash=photo.file_hash or "",
+            deployment_file_hash=deployment_hash,
             exif=exif_data,
             files=files_data
         )

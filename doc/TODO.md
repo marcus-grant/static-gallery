@@ -4,7 +4,7 @@
 
 ## Current Test Failures **[IMMEDIATE PRIORITY]**
 
-**Status**: 8 failing template tests after CDN URL changes (233 passing, 4 skipped)
+**Status**: Template tests mostly resolved, some Alpine.js tests deferred (template debug fixed)
 
 ### Identified Bugs
 
@@ -30,52 +30,98 @@
 - [x] Implement missing TemplateRenderer.render_photo_cell method  
 - [ ] **Focus on static site first** - Skip JS-related test failures until post-deploy
 
-**Note**: Alpine.js functionality is planned for post-deployment. Current priority is JSON metadata system.
+**Note**: Alpine.js functionality is planned for post-deployment. Current priority is idempotent deployment system.
 
-**Recent Completed Work**:
-- ✅ EXIF timestamp correction implemented and tested (56 tests pass)
-- ✅ CDN integration with relative URLs (`photos/web/photo.jpg` not `/photos/`)
-- ✅ Dev server supports both `/photos/` and `photos/` paths  
-- ✅ Template tests fixed for URL format changes
-- ✅ Alpine.js functionality deferred until post-deployment
-- ✅ Static-first approach: Pure HTML gallery without JavaScript
+**Current System State (2025-10-28)**:
+- ✅ **EXIF timestamp correction** - Complete with -4 hour offset applied to all processing
+- ✅ **JSON metadata system** - Complete with type-safe dataclasses and file hash calculation  
+- ✅ **PhotoMetadataService** - Supports both filename parsing and JSON metadata reading
+- ✅ **Template debug service** - Fixed to use generic render() method
+- ✅ **Integration testing** - Full round-trip from photo processing to metadata consumption
+- ✅ **Gallery-metadata.json generation** - Automatic during photo processing with corrected timestamps
+- ✅ **File hash calculation** - SHA256 hashes of original files for change detection
+- ✅ **Filename generation** - Reflects corrected timestamps (with offset applied)
 
+**Key Architecture**: JSON metadata stores original + corrected timestamps and file hashes. During deployment, original files will be streamed → EXIF modified in memory → uploaded directly (no local storage of modified copies).
+
+## Current JSON Metadata System **[FOR NEW DEVELOPERS]**
+
+**How it works**:
+1. **Photo Processing** (`process_dual_photo_collection`):
+   - Reads EXIF from original files
+   - Applies `TIMESTAMP_OFFSET_HOURS` setting in memory
+   - Calculates SHA256 hash of original source files
+   - Generates chronological filenames using corrected timestamps
+   - Creates `gallery-metadata.json` with type-safe dataclasses
+
+2. **Metadata Structure** (see `src/models/photo.py`):
+   - `GalleryMetadata` → `PhotoMetadata` → `MetadataExifData` + `MetadataFileData`
+   - Stores both original and corrected timestamps
+   - Includes file hashes for change detection
+   - Camera info and file paths for all variants (full/web/thumb)
+
+3. **PhotoMetadataService** (`src/services/photo_metadata.py`):
+   - `generate_json_metadata()` - Legacy filename parsing (backward compatibility)
+   - `generate_json_metadata_from_file()` - New JSON metadata reading
+   - Converts metadata to frontend-optimized format
+
+4. **Testing** (`test/services/test_photo_metadata.py`):
+   - Integration test proves complete round-trip works
+   - File hash calculation verified
+   - JSON metadata generation tested
 
 ## Idempotent Deployment System **[NEXT PRIORITY]**
 
-**Objective**: Enable selective deployment based on file changes using JSON metadata system.
+**Objective**: Enable selective deployment based on file changes using dual-hash metadata system with real-time EXIF modification.
 
-**Benefits**:
-- Only upload changed files to save bandwidth and time
-- Real-time EXIF modification during upload (no local storage waste)
-- Hash-based change detection for reliable deployment
-- Preserve originals unchanged for archive/CI purposes
+**Key Innovation**: Calculate both original file hash and deployment file hash (after EXIF corrections) during photo processing, enabling accurate change detection for deployment.
 
-### Implementation Tasks
+### Phase 1: Settings Enhancement
+- [ ] **Add timezone setting**: `TARGET_TIMEZONE_OFFSET_HOURS = 13` (13 = preserve original timezone)
+- [ ] **Environment variable support**: `GALLERIA_TARGET_TIMEZONE_OFFSET_HOURS`
+- [ ] **Test settings loading** and validation
 
-   - [ ] Download remote `gallery-metadata.json` from S3 bucket
-   - [ ] Compare local vs remote metadata (file hashes, timestamps)
-   - [ ] Generate deployment plan (add/update/delete operations)
-   - [ ] Selective upload only changed files
-   - [ ] Upload updated metadata files
+### Phase 2: Dual Hash Metadata System  
+- [ ] **Enhance PhotoMetadata dataclass** with `deployment_file_hash` field
+- [ ] **Update file_processing.py** to calculate both hashes:
+  - `original_file_hash` (existing) - hash of source file
+  - `deployment_file_hash` (new) - hash after EXIF modifications applied
+- [ ] **Test metadata serialization** with both hashes
 
-2. **Real-time EXIF Modification** ⚠️ **CRITICAL REQUIREMENT**
-   - [ ] **Stream original → modify EXIF in memory → upload directly**
-   - [ ] **Apply DateTimeOriginal offset and set OffsetTimeOriginal timezone**
-   - [ ] **Never store modified copies locally** (save disk space)
-   - [ ] **Preserve originals completely unchanged** for archive/CI purposes
-   - [ ] Use piexif or similar library for EXIF writing
-   - [ ] Test EXIF modification preserves image quality
+### Phase 3: EXIF Stream Processing
+- [ ] **Add `modify_exif_in_memory()`** to `s3_storage.py` for real-time EXIF modification
+- [ ] **Add `upload_photo_with_exif_correction()`** for streaming upload
+- [ ] **Use piexif library**, preserve image quality, never store locally
+- [ ] **Test timezone application** and image integrity
 
-3. **Frontend Integration**
-   - [ ] Generate frontend-ready `prod/site/gallery-data.json`
-   - [ ] Update template rendering to use JSON data
+### Phase 4: Deployment Orchestration
+- [ ] **Add metadata download/comparison** functions to `deployment.py`
+- [ ] **Add deployment plan generation** based on `deployment_file_hash` comparison
+- [ ] **Add S3 state verification** using `list_bucket_files()`
+- [ ] **Test complete workflow** with metadata-last upload ordering
 
-4. **Deployment Optimization**
-   - [ ] Skip unchanged photos based on hash comparison
-   - [ ] Batch operations for efficiency
-   - [ ] Progress reporting for large deployments
-   - [ ] Rollback capability for failed deployments
+### Phase 5: Deploy Command
+- [ ] **Create `src/commands/deploy.py`** with CLI arguments:
+  - `--dry-run`: Show deployment plan without executing
+  - `--force`: Ignore hash comparison, upload everything
+  - `--plan-only`: Show deployment plan and exit
+  - `--progress`: Show detailed progress during upload
+- [ ] **User confirmation** for deployment plans
+- [ ] **Progress reporting** and result summaries
+
+### Implementation Approach
+- **TDD throughout** - test every function before implementation
+- **Metadata-last uploads** - photos first, then metadata (atomic consistency)
+- **Hash-based comparison** - only upload changed photos using `deployment_file_hash`
+- **Settings-aware** - timezone changes trigger new deployment hashes during processing
+- **Failure recovery** - partial uploads don't corrupt metadata, enable retry
+
+### Key Technical Decisions
+1. **Dual hash system** - track both original and deployment file hashes
+2. **Streaming EXIF modification** - never store corrected photos locally  
+3. **Metadata-driven deployment** - compare deployment hashes, not file modification times
+4. **Atomic operations** - metadata always reflects actual remote state
+5. **Settings separation** - timestamp correction vs timezone are different concerns
 
 ## Real-world Deployment Testing **[FUTURE PRIORITY]**
 

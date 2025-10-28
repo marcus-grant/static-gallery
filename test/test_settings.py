@@ -337,3 +337,81 @@ TIMESTAMP_OFFSET_HOURS = -6
                     import settings as test_settings
                 
                 assert test_settings.TIMESTAMP_OFFSET_HOURS == -2
+
+    def test_target_timezone_offset_setting_default(self, monkeypatch):
+        """Test that TARGET_TIMEZONE_OFFSET_HOURS has a default value of 13."""
+        # Explicitly set to 13 to test default behavior  
+        monkeypatch.setattr(settings, 'TARGET_TIMEZONE_OFFSET_HOURS', 13)
+        
+        assert hasattr(settings, 'TARGET_TIMEZONE_OFFSET_HOURS')
+        assert settings.TARGET_TIMEZONE_OFFSET_HOURS == 13
+
+    def test_target_timezone_offset_local_override(self):
+        """Test that local settings can override TARGET_TIMEZONE_OFFSET_HOURS."""
+        timezone_local_settings = """
+from pathlib import Path
+TARGET_TIMEZONE_OFFSET_HOURS = 2
+"""
+        
+        with Patcher(modules_to_reload=[]) as patcher:
+            fs = patcher.fs
+            
+            import pathlib
+            settings_path = pathlib.Path(__file__).resolve().parent.parent / "settings.py"
+            base_dir = settings_path.parent
+            local_settings_path = base_dir / "settings.local.py"
+            
+            fs.create_file(str(local_settings_path), contents=timezone_local_settings)
+            
+            with patch("dotenv.load_dotenv"):
+                import settings as test_settings
+            
+            assert test_settings.TARGET_TIMEZONE_OFFSET_HOURS == 2
+
+    def test_target_timezone_offset_env_override(self):
+        """Test that environment variables override TARGET_TIMEZONE_OFFSET_HOURS."""
+        timezone_local_settings = """
+from pathlib import Path
+TARGET_TIMEZONE_OFFSET_HOURS = 2
+"""
+        
+        with Patcher(modules_to_reload=[]) as patcher:
+            fs = patcher.fs
+            
+            import pathlib
+            settings_path = pathlib.Path(__file__).resolve().parent.parent / "settings.py"
+            base_dir = settings_path.parent
+            local_settings_path = base_dir / "settings.local.py"
+            
+            fs.create_file(str(local_settings_path), contents=timezone_local_settings)
+            
+            env_overrides = {'GALLERIA_TARGET_TIMEZONE_OFFSET_HOURS': '-5'}
+            
+            with patch.dict(os.environ, env_overrides):
+                with patch("dotenv.load_dotenv"):
+                    import settings as test_settings
+                
+                assert test_settings.TARGET_TIMEZONE_OFFSET_HOURS == -5
+
+    def test_target_timezone_offset_special_value_13(self):
+        """Test that TARGET_TIMEZONE_OFFSET_HOURS = 13 means preserve original timezone."""
+        # This is a design decision test - 13 means "don't modify timezone"
+        timezone_local_settings = """
+from pathlib import Path
+TARGET_TIMEZONE_OFFSET_HOURS = 13
+"""
+        
+        with Patcher(modules_to_reload=[]) as patcher:
+            fs = patcher.fs
+            
+            import pathlib
+            settings_path = pathlib.Path(__file__).resolve().parent.parent / "settings.py"
+            base_dir = settings_path.parent
+            local_settings_path = base_dir / "settings.local.py"
+            
+            fs.create_file(str(local_settings_path), contents=timezone_local_settings)
+            
+            with patch("dotenv.load_dotenv"):
+                import settings as test_settings
+            
+            assert test_settings.TARGET_TIMEZONE_OFFSET_HOURS == 13

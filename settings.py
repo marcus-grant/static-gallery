@@ -55,6 +55,7 @@ WEBP_QUALITY = 85
 
 # EXIF timestamp correction settings
 TIMESTAMP_OFFSET_HOURS = 0  # Offset to correct systematic timestamp errors (hours)
+TARGET_TIMEZONE_OFFSET_HOURS = 13  # Target timezone for EXIF deployment (13 = preserve original)
 
 # Load local settings if present
 LOCAL_SETTINGS_PATH = CONFIG_DIR / LOCAL_SETTINGS_FILENAME
@@ -93,6 +94,7 @@ S3_PUBLIC_REGION = os.getenv('GALLERIA_S3_PUBLIC_REGION', S3_PUBLIC_REGION)
 
 # EXIF timestamp correction - environment variable override
 TIMESTAMP_OFFSET_HOURS = int(os.getenv('GALLERIA_TIMESTAMP_OFFSET_HOURS', str(TIMESTAMP_OFFSET_HOURS)))
+TARGET_TIMEZONE_OFFSET_HOURS = int(os.getenv('GALLERIA_TARGET_TIMEZONE_OFFSET_HOURS', str(TARGET_TIMEZONE_OFFSET_HOURS)))
 
 # TODO: Consider adding TEST_OUTPUT_PATH setting for real-world testing
 # This would allow test outputs to be separate from production processing paths
