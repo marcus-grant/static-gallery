@@ -49,7 +49,8 @@
 **🚧 CURRENT DEVELOPMENT STATUS**:
 - **Phase 1 & 2 COMPLETE**: Settings and dual-hash metadata infrastructure ready
 - **Phase 3 COMPLETE**: EXIF modification and deployment hash calculation implemented
-- **Phase 4 READY**: Deployment orchestration can now be implemented using the dual-hash system
+- **Phase 4 COMPLETE**: Deployment orchestration with metadata-last upload ordering implemented
+- **Phase 5 READY**: Deploy command can now be implemented using the deployment orchestration system
 
 **🔧 FOR NEW DEVELOPERS - CURRENT IMPLEMENTATION STATE**:
 
@@ -59,14 +60,17 @@
 - ✅ `GalleryMetadata.from_dict()` handles both hash fields correctly
 - ✅ `modify_exif_in_memory()` function implemented (`src/services/s3_storage.py`)
 - ✅ Deployment hash calculation implemented (`src/services/file_processing.py:258-285`)
+- ✅ Deployment orchestration functions implemented (`src/services/deployment.py`)
 - ✅ Comprehensive test suite for EXIF modification (`test/services/test_s3_storage.py`)
 - ✅ Integration tests for dual-hash system (`test/test_dual_hash_integration.py`)
+- ✅ Complete test suite for deployment orchestration (`test/services/test_deployment.py`)
 - ✅ Complete documentation for metadata consistency system
 
 **Key files to understand:**
 - `src/models/photo.py` - PhotoMetadata structure with dual hashes
 - `src/services/s3_storage.py` - modify_exif_in_memory() function
 - `src/services/file_processing.py` - Lines 258-285: deployment hash calculation
+- `src/services/deployment.py` - Deployment orchestration with metadata-last upload ordering
 - `settings.py` - Line 58: TARGET_TIMEZONE_OFFSET_HOURS setting
 - `doc/architecture/metadata-consistency.md` - Complete system documentation
 
@@ -147,11 +151,23 @@
 - [ ] **Use piexif library**, preserve image quality, never store locally
 - [ ] **Test timezone application** and image integrity
 
-### Phase 4: Deployment Orchestration
-- [ ] **Add metadata download/comparison** functions to `deployment.py`
-- [ ] **Add deployment plan generation** based on `deployment_file_hash` comparison
-- [ ] **Add S3 state verification** using `list_bucket_files()`
-- [ ] **Test complete workflow** with metadata-last upload ordering
+### Phase 4: Deployment Orchestration ✅ **COMPLETED**
+- [x] **Add metadata download/comparison** functions to `deployment.py`
+- [x] **Add deployment plan generation** based on `deployment_file_hash` comparison
+- [x] **Add S3 state verification** using `list_bucket_files()`
+- [x] **Test complete workflow** with metadata-last upload ordering
+
+✅ **Completed Phase 4 Features:**
+1. ✅ **`download_remote_metadata()`** - Downloads and parses remote metadata from S3 with error handling
+2. ✅ **`generate_deployment_plan()`** - Compares local vs remote using `deployment_file_hash`, identifies changes
+3. ✅ **`verify_s3_state()`** - Validates remote state matches expected metadata, detects inconsistencies  
+4. ✅ **`deploy_gallery_metadata()`** - Complete workflow with metadata-last upload ordering for atomic consistency
+5. ✅ **Comprehensive test suite** - 21 new tests covering all deployment scenarios
+6. ✅ **Dry run support** - Preview deployment plans without executing
+7. ✅ **Error handling** - Graceful failures with detailed error reporting
+
+### Phase 4 Documentation Task
+- [ ] **Document deployment orchestration system** in appropriate doc hierarchy following contribution guidelines
 
 ### Phase 5: Deploy Command
 - [ ] **Create `src/commands/deploy.py`** with CLI arguments:

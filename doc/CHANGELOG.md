@@ -2,6 +2,14 @@
 
 ## 2025-10-28
 
+### Phase 4: Deployment Orchestration System Completed
+- **Metadata download/comparison**: Implemented download_remote_metadata() with error handling for missing/invalid metadata
+- **Deployment plan generation**: Hash-based comparison using deployment_file_hash to identify photos needing upload/delete
+- **S3 state verification**: Validates remote state consistency and detects orphaned files
+- **Complete workflow orchestration**: deploy_gallery_metadata() with metadata-last upload ordering for atomic consistency
+- **Comprehensive testing**: 21 new tests covering all deployment scenarios including dry-run and error handling
+- **Idempotent operations**: Multiple deployments with same state produce identical results
+
 ### Phase 3: EXIF Modification and Dual-Hash System Completed
 - **EXIF modification service**: Implemented modify_exif_in_memory() function with EXIF 2.31 compliance
 - **Dual timezone system**: Combined TIMESTAMP_OFFSET_HOURS (camera correction) and TARGET_TIMEZONE_OFFSET_HOURS (timezone context)
