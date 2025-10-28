@@ -3,7 +3,7 @@
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 
 @dataclass
@@ -37,6 +37,7 @@ class ProcessedPhoto:
     edge_cases: List[str]
     collection: Optional[str] = None
     generated_filename: Optional[str] = None
+    file_hash: Optional[str] = None
 
 
 def photo_from_exif_service(
@@ -68,6 +69,82 @@ def photo_from_exif_service(
         collection=None,
         generated_filename=None,
     )
+
+
+@dataclass
+class MetadataExifData:
+    """EXIF data structure for gallery metadata."""
+    
+    original_timestamp: Optional[str]
+    corrected_timestamp: Optional[str]
+    timezone_original: str
+    camera: Dict[str, Optional[str]]
+    subsecond: Optional[int]
+
+
+@dataclass
+class MetadataFileData:
+    """File paths structure for gallery metadata."""
+    
+    full: str
+    web: str
+    thumb: str
+
+
+@dataclass
+class PhotoMetadata:
+    """Individual photo metadata for gallery JSON."""
+    
+    id: str
+    original_path: str
+    file_hash: str
+    exif: MetadataExifData
+    files: MetadataFileData
+
+
+@dataclass
+class GallerySettings:
+    """Settings structure for gallery metadata."""
+    
+    timestamp_offset_hours: int
+
+
+@dataclass
+class GalleryMetadata:
+    """Complete gallery metadata structure."""
+    
+    schema_version: str
+    generated_at: str
+    collection: str
+    settings: GallerySettings
+    photos: List[PhotoMetadata]
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return asdict(self)
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'GalleryMetadata':
+        """Create from dictionary (JSON deserialization)."""
+        settings = GallerySettings(**data["settings"])
+        photos = [
+            PhotoMetadata(
+                id=p["id"],
+                original_path=p["original_path"],
+                file_hash=p["file_hash"],
+                exif=MetadataExifData(**p["exif"]),
+                files=MetadataFileData(**p["files"])
+            )
+            for p in data["photos"]
+        ]
+        
+        return cls(
+            schema_version=data["schema_version"],
+            generated_at=data["generated_at"],
+            collection=data["collection"],
+            settings=settings,
+            photos=photos
+        )
 
 
 def photo_to_json(photo: ProcessedPhoto) -> dict:
@@ -103,5 +180,6 @@ def photo_from_json(data: dict) -> ProcessedPhoto:
         edge_cases=data["edge_cases"],
         collection=data.get("collection"),
         generated_filename=data.get("generated_filename"),
+        file_hash=data.get("file_hash"),
     )
 

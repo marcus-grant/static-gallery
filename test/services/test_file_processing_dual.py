@@ -5,6 +5,7 @@ from PIL import Image
 import piexif
 
 from src.services.file_processing import process_dual_photo_collection
+from src.services.s3_storage import calculate_file_checksum
 import settings
 
 
@@ -181,3 +182,122 @@ class TestProcessDualPhotoCollection:
         # The generated filename should reflect the corrected timestamp
         # Format is: test-20241012T113045-unk-0.jpg (YYYYMMDDTHHMMSS)
         assert "20241012T113045" in processed_photo.generated_filename
+    
+    def test_file_hash_calculation_for_original_files(self, tmp_path):
+        """Test that file hashes are calculated for original source files during processing."""
+        # Setup directories
+        full_dir = tmp_path / "full"
+        web_dir = tmp_path / "web"
+        output_dir = tmp_path / "output"
+        
+        full_dir.mkdir()
+        web_dir.mkdir()
+        
+        # Create matching photos with EXIF
+        exif_dict = {"0th": {}, "Exif": {}, "1st": {}, "GPS": {}}
+        exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = b"2024:06:15 14:30:45"
+        exif_bytes = piexif.dump(exif_dict)
+        
+        # Full resolution
+        full_img = Image.new('RGB', (2000, 1500), color='red')
+        full_path = full_dir / "IMG_001.jpg"
+        full_img.save(full_path, "JPEG", exif=exif_bytes)
+        
+        # Web optimized  
+        web_img = Image.new('RGB', (1200, 900), color='red')
+        web_path = web_dir / "IMG_001.jpg"
+        web_img.save(web_path, "JPEG", exif=exif_bytes)
+        
+        # Calculate expected hash of original full file
+        expected_hash = calculate_file_checksum(full_path)
+        
+        # Process the collection
+        result = process_dual_photo_collection(
+            full_source_dir=full_dir,
+            web_source_dir=web_dir,
+            output_dir=output_dir,
+            collection_name="test"
+        )
+        
+        # Verify processing succeeded
+        assert result["total_processed"] == 1
+        assert len(result["photos"]) == 1
+        
+        # Check that the processed photo has original file hash
+        processed_photo = result["photos"][0]
+        assert hasattr(processed_photo, 'file_hash')
+        assert processed_photo.file_hash == expected_hash
+        
+        # Verify hash is SHA256 format
+        assert len(processed_photo.file_hash) == 64  # SHA256 hex length
+        assert all(c in '0123456789abcdef' for c in processed_photo.file_hash)
+    
+    def test_generate_gallery_metadata_json(self, tmp_path, monkeypatch):
+        """Test that gallery-metadata.json is generated during photo processing."""
+        # Set timestamp offset for testing
+        monkeypatch.setattr(settings, 'TIMESTAMP_OFFSET_HOURS', -4)
+        
+        # Setup directories
+        full_dir = tmp_path / "full"
+        web_dir = tmp_path / "web"
+        output_dir = tmp_path / "output"
+        
+        full_dir.mkdir()
+        web_dir.mkdir()
+        
+        # Create matching photos with EXIF
+        exif_dict = {"0th": {}, "Exif": {}, "1st": {}, "GPS": {}}
+        exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = b"2024:08:10 18:30:45"
+        exif_bytes = piexif.dump(exif_dict)
+        
+        # Full resolution
+        full_img = Image.new('RGB', (2000, 1500), color='red')
+        full_path = full_dir / "IMG_001.jpg"
+        full_img.save(full_path, "JPEG", exif=exif_bytes)
+        
+        # Web optimized
+        web_img = Image.new('RGB', (1200, 900), color='red')
+        web_path = web_dir / "IMG_001.jpg"
+        web_img.save(web_path, "JPEG", exif=exif_bytes)
+        
+        # Process the collection
+        result = process_dual_photo_collection(
+            full_source_dir=full_dir,
+            web_source_dir=web_dir,
+            output_dir=output_dir,
+            collection_name="wedding"
+        )
+        
+        # Verify processing succeeded
+        assert result["total_processed"] == 1
+        
+        # Check that gallery-metadata.json was created
+        metadata_file = output_dir / "gallery-metadata.json"
+        assert metadata_file.exists()
+        
+        # Parse and verify metadata content
+        import json
+        with open(metadata_file) as f:
+            metadata = json.load(f)
+        
+        # Verify schema structure
+        assert metadata["schema_version"] == "1.0"
+        assert metadata["collection"] == "wedding"
+        assert "generated_at" in metadata
+        assert metadata["settings"]["timestamp_offset_hours"] == -4
+        assert len(metadata["photos"]) == 1
+        
+        # Verify photo metadata
+        photo_meta = metadata["photos"][0]
+        assert photo_meta["original_path"] == str(full_path)
+        assert "file_hash" in photo_meta
+        assert photo_meta["exif"]["original_timestamp"] == "2024-08-10T18:30:45"
+        assert photo_meta["exif"]["corrected_timestamp"] == "2024-08-10T14:30:45"  # -4 hours
+        assert photo_meta["exif"]["timezone_original"] == "+00:00"
+        
+        # Verify file paths
+        processed_photo = result["photos"][0]
+        expected_filename = processed_photo.generated_filename
+        assert photo_meta["files"]["full"] == f"full/{expected_filename}"
+        assert photo_meta["files"]["web"] == f"web/{expected_filename}"
+        assert photo_meta["files"]["thumb"] == expected_filename.replace(".jpg", ".webp")

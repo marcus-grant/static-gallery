@@ -1,9 +1,12 @@
 """File processing service for photo operations."""
 
 import shutil
+import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, List
-from src.models.photo import ProcessedPhoto
+from src.models.photo import ProcessedPhoto, GalleryMetadata, PhotoMetadata, MetadataExifData, MetadataFileData, GallerySettings
+import settings
 
 
 def link_photo_with_filename(photo: ProcessedPhoto, output_dir: Path) -> Path:
@@ -94,6 +97,7 @@ def process_photo_collection(source_dir: Path, output_dir: Path,
     """
     from src.services import fs, exif
     from src.services.filename_service import generate_photo_filename
+    from src.services.s3_storage import calculate_file_checksum
     from src.models.photo import photo_from_exif_service
     
     results = {
@@ -130,6 +134,9 @@ def process_photo_collection(source_dir: Path, output_dir: Path,
                 subsecond=subsecond,
                 edge_cases=edge_cases
             )
+            
+            # Calculate file hash of original source file
+            photo_data.file_hash = calculate_file_checksum(photo_path)
                 
             # Generate chronological filename
             photo_data.collection = collection_name
@@ -156,6 +163,11 @@ def process_photo_collection(source_dir: Path, output_dir: Path,
             
         except Exception as e:
             results["errors"].append(f"{photo_path.name}: {str(e)}")
+    
+    # Generate and save gallery metadata JSON
+    if results["photos"]:
+        metadata = generate_gallery_metadata(results["photos"], collection_name)
+        save_gallery_metadata(metadata, output_dir)
     
     return results
 
@@ -192,6 +204,90 @@ def is_processing_needed(full_path: Path, web_path: Path, output_dir: Path, gene
     return False
 
 
+def generate_gallery_metadata(photos: List[ProcessedPhoto], collection_name: str) -> GalleryMetadata:
+    """Generate gallery metadata from processed photos.
+    
+    Args:
+        photos: List of processed photos
+        collection_name: Name of the collection
+        
+    Returns:
+        GalleryMetadata dataclass instance
+    """
+    settings_data = GallerySettings(
+        timestamp_offset_hours=getattr(settings, 'TIMESTAMP_OFFSET_HOURS', 0)
+    )
+    
+    photo_metadata_list = []
+    
+    for photo in photos:
+        # Calculate original and corrected timestamps
+        original_timestamp = None
+        corrected_timestamp = None
+        
+        if photo.exif.timestamp:
+            corrected_timestamp = photo.exif.timestamp
+            # Calculate original by reversing the offset
+            offset_hours = getattr(settings, 'TIMESTAMP_OFFSET_HOURS', 0)
+            if offset_hours != 0:
+                from datetime import timedelta
+                original_timestamp = corrected_timestamp - timedelta(hours=offset_hours)
+            else:
+                original_timestamp = corrected_timestamp
+        
+        # Generate photo ID from filename without extension
+        photo_id = photo.generated_filename.replace('.jpg', '').replace('.jpeg', '') if photo.generated_filename else ""
+        
+        exif_data = MetadataExifData(
+            original_timestamp=original_timestamp.isoformat() if original_timestamp else None,
+            corrected_timestamp=corrected_timestamp.isoformat() if corrected_timestamp else None,
+            timezone_original="+00:00",  # Assuming UTC in EXIF
+            camera={
+                "make": photo.camera.make,
+                "model": photo.camera.model
+            },
+            subsecond=photo.exif.subsecond
+        )
+        
+        files_data = MetadataFileData(
+            full=f"full/{photo.generated_filename}" if photo.generated_filename else "",
+            web=f"web/{photo.generated_filename}" if photo.generated_filename else "",
+            thumb=photo.generated_filename.replace('.jpg', '.webp').replace('.jpeg', '.webp') if photo.generated_filename else ""
+        )
+        
+        photo_meta = PhotoMetadata(
+            id=photo_id,
+            original_path=str(photo.path),
+            file_hash=photo.file_hash or "",
+            exif=exif_data,
+            files=files_data
+        )
+        
+        photo_metadata_list.append(photo_meta)
+    
+    return GalleryMetadata(
+        schema_version="1.0",
+        generated_at=datetime.now(timezone.utc).isoformat(),
+        collection=collection_name,
+        settings=settings_data,
+        photos=photo_metadata_list
+    )
+
+
+def save_gallery_metadata(metadata: GalleryMetadata, output_dir: Path) -> None:
+    """Save gallery metadata to JSON file.
+    
+    Args:
+        metadata: Gallery metadata dataclass instance
+        output_dir: Directory to save metadata file
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    metadata_file = output_dir / "gallery-metadata.json"
+    
+    with open(metadata_file, 'w') as f:
+        json.dump(metadata.to_dict(), f, indent=2)
+
+
 def process_dual_photo_collection(
     full_source_dir: Path,
     web_source_dir: Path,
@@ -214,6 +310,7 @@ def process_dual_photo_collection(
     from src.services import fs, exif
     from src.services.filename_service import generate_photo_filename
     from src.services.photo_validation import get_matched_photo_pairs, validate_matching_collections
+    from src.services.s3_storage import calculate_file_checksum
     from src.models.photo import photo_from_exif_service
     
     results = {
@@ -267,6 +364,9 @@ def process_dual_photo_collection(
                 subsecond=subsecond,
                 edge_cases=edge_cases
             )
+            
+            # Calculate file hash of original source file
+            photo_data.file_hash = calculate_file_checksum(full_path)
                 
             # Generate chronological filename
             photo_data.collection = collection_name
@@ -313,5 +413,10 @@ def process_dual_photo_collection(
             
         except Exception as e:
             results["errors"].append(f"{full_path.name}: {str(e)}")
+    
+    # Generate and save gallery metadata JSON
+    if results["photos"]:
+        metadata = generate_gallery_metadata(results["photos"], collection_name)
+        save_gallery_metadata(metadata, output_dir)
     
     return results

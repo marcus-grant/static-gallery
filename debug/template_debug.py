@@ -80,7 +80,7 @@ class TemplateDebugger:
             }
         }
         return self.render_and_print(
-            self.renderer.render_photo_cell,
+            lambda data: self.renderer.render("components/photo-cell.j2.html", data),
             data,
             "Photo Cell Component"
         )
