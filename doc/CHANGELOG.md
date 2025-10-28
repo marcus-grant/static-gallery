@@ -1,5 +1,15 @@
 # Galleria Changelog
 
+## 2025-10-28
+
+### JSON Metadata System Completed
+- **Type-safe dataclasses**: Added GalleryMetadata, PhotoMetadata, MetadataExifData structures
+- **File hash calculation**: Calculate SHA256 hashes of original source files for change detection
+- **Metadata generation**: Generate gallery-metadata.json during photo processing with corrected timestamps
+- **PhotoMetadataService updates**: Added support for reading from JSON metadata with backward compatibility
+- **Integration testing**: Complete round-trip testing from photo processing to metadata consumption
+- **Template debug fixes**: Use generic render() method instead of specialized render_photo_cell
+
 ## 2025-10-27
 
 ### EXIF Timestamp Offset System Completed

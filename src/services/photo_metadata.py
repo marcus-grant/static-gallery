@@ -1,5 +1,7 @@
 import re
+import json
 from pathlib import Path
+from src.models.photo import GalleryMetadata
 
 
 class PhotoMetadataService:
@@ -57,5 +59,42 @@ class PhotoMetadataService:
                     "web_url": f"photos/web/{filename}",
                     "full_url": f"photos/full/{filename}"
                 })
+        
+        return {"photos": photo_data}
+    
+    def generate_json_metadata_from_file(self, metadata_file_path: str) -> dict:
+        """Generate frontend JSON metadata from gallery-metadata.json file.
+        
+        Args:
+            metadata_file_path: Path to gallery-metadata.json file
+            
+        Returns:
+            Dictionary with frontend-optimized photo data
+        """
+        with open(metadata_file_path, 'r') as f:
+            metadata_dict = json.load(f)
+        
+        # Parse using dataclass
+        gallery_metadata = GalleryMetadata.from_dict(metadata_dict)
+        
+        photo_data = []
+        
+        for photo in gallery_metadata.photos:
+            # Combine camera make and model
+            camera_parts = []
+            if photo.exif.camera.get("make"):
+                camera_parts.append(photo.exif.camera["make"])
+            if photo.exif.camera.get("model"):
+                camera_parts.append(photo.exif.camera["model"])
+            camera_name = " ".join(camera_parts) if camera_parts else "Unknown"
+            
+            photo_data.append({
+                "id": photo.id,
+                "timestamp": photo.exif.corrected_timestamp,
+                "camera": camera_name,
+                "full_url": f"photos/{photo.files.full}",
+                "web_url": f"photos/{photo.files.web}",
+                "thumb_url": f"photos/thumb/{photo.files.thumb}"
+            })
         
         return {"photos": photo_data}

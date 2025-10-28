@@ -16,7 +16,7 @@
    - Affected: `test_base_template.py`, `test_gallery_template.py`
    - Root cause: Alpine.js functionality not implemented in templates
 
-3. **Template Debug Service Issues** - Missing `render_photo_cell` method
+3. **Template Debug Service Issues** ✅ **FIXED** - Use generic render() method
    - Affected: `test_template_debug.py`
    - Root cause: TemplateRenderer missing photo cell rendering method
 
@@ -27,7 +27,7 @@
 ### Fix Priority
 - [x] Update template tests to expect relative URLs (`photos/` not `/photos/`)
 - [ ] **DEFER Alpine.js tests** - These test future JS functionality, not current static MVP
-- [ ] Implement missing TemplateRenderer.render_photo_cell method  
+- [x] Implement missing TemplateRenderer.render_photo_cell method  
 - [ ] **Focus on static site first** - Skip JS-related test failures until post-deploy
 
 **Note**: Alpine.js functionality is planned for post-deployment. Current priority is JSON metadata system.
@@ -40,142 +40,38 @@
 - ✅ Alpine.js functionality deferred until post-deployment
 - ✅ Static-first approach: Pure HTML gallery without JavaScript
 
-## EXIF Timestamp Correction **[COMPLETED]**
 
-**Problem**: Camera EXIF shows `+00:00` (UTC) timezone but timestamps are 4 hours ahead of expected UTC. All 645 photos have systematic 4-hour offset.
+## Idempotent Deployment System **[NEXT PRIORITY]**
 
-**Goal**: Add `-4` hour offset setting and integrate into photo processing workflow.
-
-**✅ IMPLEMENTATION COMPLETE** - Key details for next developer:
-- Offset applied during EXIF reading in `get_datetime_taken()` (not file modification)
-- Uses `timedelta(hours=offset)` for timestamp correction  
-- All tests use `autouse` fixtures for proper isolation (`reset_timestamp_offset`)
-- Original files remain unchanged (symlinks preserved in `prod/pics/`)
-- Settings precedence: `defaults → local settings → environment variables`
-- ⚠️ **CRITICAL**: Deploy step must copy files and modify EXIF in uploads (see "Deployment EXIF Modification" section below)
-
-### Implementation Tasks
-
-1. **Add Settings** (TDD approach)
-   - [x] Write test for timestamp offset setting
-   - [x] Add `TIMESTAMP_OFFSET_HOURS` to `settings.py` (defaults to 0)
-   - [x] Add environment variable support: `GALLERIA_TIMESTAMP_OFFSET_HOURS`
-
-2. **Modify EXIF Service** (TDD approach)
-   - [x] Write test for offset application in `get_datetime_taken()`
-   - [x] Update `src/services/exif.py` to apply offset
-   - [x] Use JSON metadata for corrections (not actual EXIF file modification)
-
-3. **Integrate into Photo Processing** (TDD approach)
-   - [x] Write test for offset integration in processing workflow
-   - [x] Verify offset flows through `process_dual_photo_collection`
-   - [x] Preserve originals (symlinks remain unchanged)
-
-4. **Testing & Validation**
-   - [x] All tests pass with proper isolation using `autouse` fixtures
-   - [x] Run comprehensive test suite validation (56 tests pass)
-   - [x] Verify EXIF correction maintains chronological ordering with synthetic photos
-   - [x] Test chronological filename generation with offset timestamps
-
-5. **JSON Metadata System** (New Approach)
-   - [ ] Design JSON schema for corrected timestamps and EXIF data
-   - [ ] Generate `prod/gallery-metadata.json` during photo processing
-   - [ ] Update build system to read from JSON metadata
-   - [ ] Generate frontend-ready `prod/site/gallery-data.json`
-
-## JSON Metadata & Idempotent Deployment **[NEXT PRIORITY]**
-
-**Objective**: Implement JSON-based metadata system for EXIF corrections and enable selective deployment based on file changes.
+**Objective**: Enable selective deployment based on file changes using JSON metadata system.
 
 **Benefits**:
-- Separate EXIF corrections from photo storage
-- Enable idempotent deployments (only upload changed files)
-- Provide frontend-ready JSON for JavaScript gallery functionality
-- Preserve original photos unchanged
-
-### JSON Metadata Schema Design
-
-**Local Metadata** (`prod/gallery-metadata.json`):
-```json
-{
-  "schema_version": "1.0",
-  "generated_at": "2024-10-27T14:30:45Z",
-  "collection": "wedding",
-  "settings": {
-    "timestamp_offset_hours": -4
-  },
-  "photos": [
-    {
-      "id": "wedding-20240810T143045-r5a-0",
-      "original_path": "pics-full/IMG_001.jpg",
-      "file_hash": "sha256:abc123...",
-      "exif": {
-        "original_timestamp": "2024-08-10T18:30:45",
-        "corrected_timestamp": "2024-08-10T14:30:45",
-        "timezone_original": "+00:00",
-        "timezone_corrected": "+02:00",
-        "camera": {"make": "Canon", "model": "EOS R5"},
-        "subsecond": 123
-      },
-      "files": {
-        "full": "prod/pics/full/wedding-20240810T143045-r5a-0.jpg",
-        "web": "prod/pics/web/wedding-20240810T143045-r5a-0.jpg", 
-        "thumb": "prod/pics/thumb/wedding-20240810T143045-r5a-0.webp"
-      }
-    }
-  ]
-}
-```
-
-**Frontend JSON** (`prod/site/gallery-data.json`):
-```json
-{
-  "collection": "wedding",
-  "photos": [
-    {
-      "id": "wedding-20240810T143045-r5a-0",
-      "timestamp": "2024-08-10T14:30:45+02:00",
-      "camera": "Canon EOS R5",
-      "urls": {
-        "full": "photos/full/wedding-20240810T143045-r5a-0.jpg",
-        "web": "photos/web/wedding-20240810T143045-r5a-0.jpg",
-        "thumb": "photos/thumb/wedding-20240810T143045-r5a-0.webp"
-      }
-    }
-  ]
-}
-```
+- Only upload changed files to save bandwidth and time
+- Real-time EXIF modification during upload (no local storage waste)
+- Hash-based change detection for reliable deployment
+- Preserve originals unchanged for archive/CI purposes
 
 ### Implementation Tasks
 
-1. **Photo Processing Enhancement**
-   - [ ] Add file hash calculation for change detection
-   - [ ] Generate `prod/gallery-metadata.json` with corrected timestamps
-   - [ ] Include original EXIF data and corrections in metadata
-   - [ ] Update tests for JSON metadata generation
-
-2. **Build System Updates**
-   - [ ] Modify `PhotoMetadataService` to read from JSON metadata
-   - [ ] Generate frontend-optimized `gallery-data.json`
-   - [ ] Maintain backward compatibility with filename parsing
-   - [ ] Update template rendering to use JSON data
-
-3. **Idempotent Deployment System**
    - [ ] Download remote `gallery-metadata.json` from S3 bucket
    - [ ] Compare local vs remote metadata (file hashes, timestamps)
    - [ ] Generate deployment plan (add/update/delete operations)
    - [ ] Selective upload only changed files
    - [ ] Upload updated metadata files
 
-4. **Deployment EXIF Modification** ⚠️ **CRITICAL REQUIREMENT**
-   - [ ] **Create temporary copies** of photos during deployment
-   - [ ] **Modify EXIF data in copies** (apply DateTimeOriginal offset, set OffsetTimeOriginal to +02:00)
-   - [ ] **Upload corrected copies to S3** (not originals)
+2. **Real-time EXIF Modification** ⚠️ **CRITICAL REQUIREMENT**
+   - [ ] **Stream original → modify EXIF in memory → upload directly**
+   - [ ] **Apply DateTimeOriginal offset and set OffsetTimeOriginal timezone**
+   - [ ] **Never store modified copies locally** (save disk space)
    - [ ] **Preserve originals completely unchanged** for archive/CI purposes
    - [ ] Use piexif or similar library for EXIF writing
    - [ ] Test EXIF modification preserves image quality
 
-5. **Deployment Optimization**
+3. **Frontend Integration**
+   - [ ] Generate frontend-ready `prod/site/gallery-data.json`
+   - [ ] Update template rendering to use JSON data
+
+4. **Deployment Optimization**
    - [ ] Skip unchanged photos based on hash comparison
    - [ ] Batch operations for efficiency
    - [ ] Progress reporting for large deployments
