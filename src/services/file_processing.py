@@ -327,7 +327,8 @@ def process_dual_photo_collection(
     full_source_dir: Path,
     web_source_dir: Path,
     output_dir: Path,
-    collection_name: str
+    collection_name: str,
+    batch_size: int = 50
 ) -> dict:
     """Process dual photo collections - full resolution and web-optimized versions.
     
@@ -377,77 +378,102 @@ def process_dual_photo_collection(
     # Track existing filenames to handle burst sequences
     existing_filenames = set()
     
-    for full_path, web_path in photo_pairs:
-        try:
-            # Extract metadata from full resolution version
-            timestamp = exif.get_datetime_taken(full_path)
-            camera_info = exif.get_camera_info(full_path)
-            exif_data = exif.extract_exif_data(full_path)
-            subsecond = exif.get_subsecond_precision(full_path)
-            
-            # Detect edge cases
-            edge_cases = []
-            if timestamp is None:
-                edge_cases.append("missing_exif")
-            
-            # Create ProcessedPhoto
-            photo_data = photo_from_exif_service(
-                path=full_path,
-                timestamp=timestamp,
-                camera_info=camera_info or {"make": None, "model": None},
-                exif_data=exif_data,
-                subsecond=subsecond,
-                edge_cases=edge_cases
-            )
-            
-            # Calculate file hash of original source file
-            photo_data.file_hash = calculate_file_checksum(full_path)
+    # Progress tracking
+    total_photos = len(photo_pairs)
+    current_photo = 0
+    batch_number = 0
+    
+    # Process photos in batches
+    for batch_start in range(0, len(photo_pairs), batch_size):
+        batch_number += 1
+        batch_end = min(batch_start + batch_size, len(photo_pairs))
+        batch_pairs = photo_pairs[batch_start:batch_end]
+        
+        print(f"Processing batch {batch_number}, photos {batch_start + 1}-{batch_end}")
+        
+        # Process each photo in this batch
+        for full_path, web_path in batch_pairs:
+            current_photo += 1
+            print(f"Processing photo {current_photo}/{total_photos}: {full_path.name}")
+            try:
+                # Extract metadata from full resolution version
+                timestamp = exif.get_datetime_taken(full_path)
+                camera_info = exif.get_camera_info(full_path)
+                exif_data = exif.extract_exif_data(full_path)
+                subsecond = exif.get_subsecond_precision(full_path)
                 
-            # Generate chronological filename
-            photo_data.collection = collection_name
-            photo_data.generated_filename = generate_photo_filename(
-                photo_data, collection_name, existing_filenames
-            )
-            existing_filenames.add(photo_data.generated_filename)
-            
-            # Check if processing is needed
-            if not is_processing_needed(full_path, web_path, output_dir, photo_data.generated_filename):
-                results["total_skipped"] += 1
-                continue
-            
-            # Create output directories
-            full_output = output_dir / "full"
-            web_output = output_dir / "web"
-            thumb_output = output_dir / "thumb"
-            
-            # Link full resolution photo with new filename
-            full_linked = link_photo_with_filename(photo_data, full_output)
-            
-            # Link web version with same chronological filename
-            web_photo = ProcessedPhoto(
-                path=web_path,
-                filename=web_path.name,
-                file_size=web_path.stat().st_size,
-                camera=photo_data.camera,
-                exif=photo_data.exif,
-                edge_cases=photo_data.edge_cases,
-                collection=photo_data.collection,
-                generated_filename=photo_data.generated_filename
-            )
-            web_linked = link_photo_with_filename(web_photo, web_output)
-            
-            # Create thumbnail from web version
-            thumb_filename = photo_data.generated_filename.replace(
-                full_path.suffix, ".webp"
-            )
-            thumb_path = thumb_output / thumb_filename
-            create_thumbnail(web_path, thumb_path)
-            
-            results["photos"].append(photo_data)
-            results["total_processed"] += 1
-            
-        except Exception as e:
-            results["errors"].append(f"{full_path.name}: {str(e)}")
+                # Detect edge cases
+                edge_cases = []
+                if timestamp is None:
+                    edge_cases.append("missing_exif")
+                
+                # Create ProcessedPhoto
+                photo_data = photo_from_exif_service(
+                    path=full_path,
+                    timestamp=timestamp,
+                    camera_info=camera_info or {"make": None, "model": None},
+                    exif_data=exif_data,
+                    subsecond=subsecond,
+                    edge_cases=edge_cases
+                )
+                
+                # Calculate file hash of original source file
+                photo_data.file_hash = calculate_file_checksum(full_path)
+                    
+                # Generate chronological filename
+                photo_data.collection = collection_name
+                photo_data.generated_filename = generate_photo_filename(
+                    photo_data, collection_name, existing_filenames
+                )
+                existing_filenames.add(photo_data.generated_filename)
+                
+                # Check if processing is needed
+                if not is_processing_needed(full_path, web_path, output_dir, photo_data.generated_filename):
+                    results["total_skipped"] += 1
+                    continue
+                
+                # Create output directories
+                full_output = output_dir / "full"
+                web_output = output_dir / "web"
+                thumb_output = output_dir / "thumb"
+                
+                # Link full resolution photo with new filename
+                full_linked = link_photo_with_filename(photo_data, full_output)
+                
+                # Link web version with same chronological filename
+                web_photo = ProcessedPhoto(
+                    path=web_path,
+                    filename=web_path.name,
+                    file_size=web_path.stat().st_size,
+                    camera=photo_data.camera,
+                    exif=photo_data.exif,
+                    edge_cases=photo_data.edge_cases,
+                    collection=photo_data.collection,
+                    generated_filename=photo_data.generated_filename
+                )
+                web_linked = link_photo_with_filename(web_photo, web_output)
+                
+                # Create thumbnail from web version
+                thumb_filename = photo_data.generated_filename.replace(
+                    full_path.suffix, ".webp"
+                )
+                thumb_path = thumb_output / thumb_filename
+                create_thumbnail(web_path, thumb_path)
+                
+                results["photos"].append(photo_data)
+                results["total_processed"] += 1
+                
+            except Exception as e:
+                results["errors"].append(f"{full_path.name}: {str(e)}")
+        
+        # Save partial metadata after each batch
+        if results["photos"]:
+            partial_metadata = generate_gallery_metadata(results["photos"], collection_name)
+            partial_filename = f"gallery-metadata.part{batch_number:03d}.json"
+            partial_path = output_dir / partial_filename
+            with open(partial_path, 'w') as f:
+                json.dump(partial_metadata.to_dict(), f, indent=2)
+            print(f"Saved partial metadata: {partial_filename}")
     
     # Generate and save gallery metadata JSON
     if results["photos"]:

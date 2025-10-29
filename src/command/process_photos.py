@@ -44,13 +44,32 @@ from src.services.photo_validation import validate_matching_collections
     is_flag=True,
     help='Show what would be processed without actually doing it'
 )
+@click.option(
+    '--resume',
+    is_flag=True,
+    help='Resume from partial files'
+)
+@click.option(
+    '--restart',
+    is_flag=True,
+    help='Clean partial files and restart'
+)
+@click.option(
+    '--batch-size',
+    type=int,
+    default=50,
+    help='Photos per batch'
+)
 def process_photos(
     full_source: Optional[Path],
     web_source: Optional[Path],
     output: Optional[Path],
     collection_name: str,
     skip_validation: bool,
-    dry_run: bool
+    dry_run: bool,
+    resume: bool,
+    restart: bool,
+    batch_size: int
 ):
     """Process full and web photo collections with chronological filenames."""
     # Import settings after click processes arguments
@@ -110,6 +129,27 @@ def process_photos(
         click.echo("Use --skip-validation to process only matching photos.", err=True)
         sys.exit(1)
     
+    # Create output directory if it doesn't exist
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Check for existing partial files
+    partial_files = list(output_dir.glob("gallery-metadata.part*.json"))
+    if partial_files and not resume and not restart:
+        click.echo("\nError: Partial files detected from previous incomplete processing:", err=True)
+        for pf in partial_files[:3]:
+            click.echo(f"  - {pf.name}", err=True)
+        if len(partial_files) > 3:
+            click.echo(f"  ... and {len(partial_files) - 3} more", err=True)
+        click.echo("\nUse --resume to continue from partial files or --restart to clean and start over.", err=True)
+        sys.exit(1)
+    
+    # Clean partial files if restart flag is used
+    if restart and partial_files:
+        click.echo(f"\nCleaning {len(partial_files)} partial files...")
+        for pf in partial_files:
+            pf.unlink()
+        click.echo("Partial files cleaned. Starting fresh processing.")
+    
     if dry_run:
         click.echo(f"\nWould process {len(matched)} matching photos.")
         click.echo("Output structure:")
@@ -126,7 +166,8 @@ def process_photos(
         full_source_dir=full_dir,
         web_source_dir=web_dir,
         output_dir=output_dir,
-        collection_name=collection_name
+        collection_name=collection_name,
+        batch_size=batch_size
     )
     
     # Show results
