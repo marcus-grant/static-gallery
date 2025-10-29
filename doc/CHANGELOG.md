@@ -2,6 +2,21 @@
 
 ## 2025-10-29
 
+### Critical Process-Photos Performance & Metadata Fixes - DEPLOYMENT UNBLOCKED
+- **Complete metadata recording**: Expanded `GallerySettings` dataclass to include all processing settings (`target_timezone_offset_hours`, `web_size`, `thumb_size`, `jpeg_quality`, `webp_quality`)
+- **Settings isolation fix**: Added `GALLERIA_TEST_MODE` environment variable to prevent `settings.local.py` pollution in test environment
+- **Production deployment ready**: All critical blocking issues resolved, full pipeline (`process-photos` → `build` → `deploy`) now works
+- **Integration test-driven development**: Created comprehensive integration tests that surfaced and guided fixes for metadata and settings issues
+- **Test suite status**: 326/329 tests passing (3 expected failures for unimplemented nice-to-have features: progress reporting, batch processing, CLI recovery flags)
+- **Timezone metadata**: All processing settings now properly recorded in gallery metadata for deployment comparison
+- **Settings defaults**: Clean S3 settings defaults (`None`) now work correctly in test environment
+- **File changes**: Updated `src/models/photo.py`, `src/services/file_processing.py`, `settings.py`, `test/test_settings.py`
+- **Technical implementation**: 
+  - `GallerySettings` dataclass expanded with defaults: `target_timezone_offset_hours=13`, `web_size=(2048,2048)`, `thumb_size=(400,400)`, `jpeg_quality=85`, `webp_quality=85`
+  - `generate_gallery_metadata()` in `file_processing.py` now populates all settings from `settings.py` module
+  - `GALLERIA_TEST_MODE=1` environment variable skips `settings.local.py` loading to prevent test pollution
+  - Settings test isolation fixed with `patch.dict(os.environ, {"GALLERIA_TEST_MODE": "1"})`
+
 ### CORS Management System Implementation Completed
 - **Comprehensive CORS validation**: Deploy command automatically examines bucket CORS configuration before deployment
 - **Early deployment abort**: Deploy fails with clear guidance if CORS not configured for web access unless `--setup-cors` provided
