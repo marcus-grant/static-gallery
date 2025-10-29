@@ -18,7 +18,7 @@ This directory contains detailed documentation for Galleria's command-line inter
 
 - **build** - Generate static website from processed photos
 - **serve** - Development server with hot-reload for template development
-- **[deploy](deploy.md)** - Deploy complete gallery to production hosting with metadata-driven optimization
+- **[deploy](deploy.md)** - Deploy complete gallery to production hosting with metadata-driven optimization and automatic CORS configuration
 
 ## Command Categories
 

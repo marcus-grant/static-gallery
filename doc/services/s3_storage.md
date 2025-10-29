@@ -223,6 +223,116 @@ def list_bucket_files(client, bucket: str, prefix: str = '') -> list
 
 **Purpose:** Bucket management and state verification for deployment consistency.
 
+## CORS Management
+
+The S3 storage service provides comprehensive CORS (Cross-Origin Resource Sharing) management for bucket configuration.
+
+### CORS Functions
+
+#### `get_bucket_cors()`
+
+Retrieves current CORS configuration from an S3 bucket.
+
+```python
+def get_bucket_cors(client, bucket: str) -> Dict[str, Any]
+```
+
+**Returns:**
+- `success`: Boolean indicating operation success
+- `cors_rules`: List of current CORS rules (empty if none configured)
+- `error`: Error message if operation failed
+
+#### `configure_bucket_cors()`
+
+Sets CORS rules for an S3 bucket.
+
+```python
+def configure_bucket_cors(client, bucket: str, cors_rules: list) -> Dict[str, Any]
+```
+
+**Purpose:** Apply CORS configuration to enable web access for gallery photos.
+
+#### `get_default_gallery_cors_rules()`
+
+Returns optimal CORS rules for gallery web access.
+
+```python
+def get_default_gallery_cors_rules() -> list
+```
+
+**Default Rules:**
+- **AllowedMethods**: `["GET", "HEAD"]` (read-only access)
+- **AllowedOrigins**: `["*"]` (all domains for CDN compatibility)
+- **AllowedHeaders**: `["*"]` (flexible header support)
+- **ExposeHeaders**: `["ETag"]` (cache optimization)
+- **MaxAgeSeconds**: `3600` (1-hour preflight cache)
+
+#### `cors_rules_match()`
+
+Compares current CORS rules with expected rules.
+
+```python
+def cors_rules_match(current_rules: list, expected_rules: list) -> bool
+```
+
+**Purpose:** Determine if CORS configuration needs updating.
+
+#### `examine_bucket_cors()`
+
+Comprehensive CORS examination with comparison and recommendations.
+
+```python
+def examine_bucket_cors(client, bucket: str) -> Dict[str, Any]
+```
+
+**Returns:**
+- `success`: Boolean indicating examination success
+- `configured`: Boolean indicating if any CORS rules exist
+- `current_rules`: List of current CORS rules
+- `expected_rules`: List of recommended CORS rules
+- `needs_update`: Boolean indicating if rules need updating
+
+### CORS Usage Examples
+
+```python
+from src.services.s3_storage import (
+    examine_bucket_cors, 
+    configure_bucket_cors, 
+    get_default_gallery_cors_rules
+)
+
+# Examine current CORS configuration
+cors_status = examine_bucket_cors(client, "gallery-bucket")
+
+if cors_status['needs_update']:
+    # Apply recommended CORS rules
+    rules = get_default_gallery_cors_rules()
+    result = configure_bucket_cors(client, "gallery-bucket", rules)
+    
+    if result['success']:
+        print("CORS configured successfully")
+    else:
+        print(f"CORS configuration failed: {result['error']}")
+```
+
+### Deploy Command Integration
+
+The CORS functions are automatically used by the deploy command:
+
+```python
+# Automatic CORS validation in deploy command
+cors_examination = examine_bucket_cors(client, bucket)
+
+if not cors_examination['configured'] or cors_examination['needs_update']:
+    if setup_cors_flag:
+        # Configure CORS automatically
+        configure_bucket_cors(client, bucket, get_default_gallery_cors_rules())
+    else:
+        # Abort deployment with guidance
+        print("Use --setup-cors to configure CORS for web access")
+        sys.exit(1)
+```
+
 ## Integration with Deployment System
 
 The S3 storage service is the foundation for Galleria's deployment capabilities:
@@ -381,6 +491,9 @@ uv run pytest test/services/test_s3_storage.py -v
 
 # Run EXIF modification tests
 uv run pytest test/services/test_s3_storage.py::TestExifModification -v
+
+# Run CORS configuration tests
+uv run pytest test/services/test_s3_storage.py::TestCORSConfiguration -v
 ```
 
 **Test Coverage:**
@@ -389,6 +502,9 @@ uv run pytest test/services/test_s3_storage.py::TestExifModification -v
 - Error handling and edge cases
 - Duplicate detection logic
 - Directory upload operations
+- CORS configuration and validation
+- CORS rules comparison and matching
+- Bucket CORS examination and reporting
 
 ## See Also
 

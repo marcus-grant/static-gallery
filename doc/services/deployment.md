@@ -199,11 +199,18 @@ def deploy_directory_to_s3(
 
 ## Integration with Deploy Command
 
-The deployment service is primarily used by the enhanced deploy command:
+The deployment service is primarily used by the enhanced deploy command with automatic CORS validation:
 
 ```python
 # In src/command/deploy.py
 from src.services.deployment import deploy_gallery_metadata
+from src.services.s3_storage import examine_bucket_cors, configure_bucket_cors
+
+# CORS validation before deployment
+cors_examination = examine_bucket_cors(client, bucket)
+if cors_examination['needs_update'] and not setup_cors:
+    click.echo("Deployment aborted: CORS configuration required for web access")
+    sys.exit(1)
 
 # Automatic mode detection
 metadata_file = photos_dir / "gallery-metadata.json"
@@ -221,6 +228,15 @@ else:
     # Fallback to directory deployment
     result = deploy_directory_to_s3(...)
 ```
+
+### CORS Integration
+
+The deployment service works in conjunction with CORS management to ensure bucket compatibility:
+
+1. **Pre-deployment validation**: CORS rules are examined before any files are uploaded
+2. **Automatic configuration**: CORS can be configured using the `--setup-cors` flag
+3. **Early termination**: Deployment aborts if CORS is not configured for web access
+4. **Validation feedback**: Clear status messages guide users on CORS requirements
 
 ## Deployment Hash System
 

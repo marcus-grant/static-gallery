@@ -1,5 +1,17 @@
 # Galleria Changelog
 
+## 2025-10-29
+
+### CORS Management System Implementation Completed
+- **Comprehensive CORS validation**: Deploy command automatically examines bucket CORS configuration before deployment
+- **Early deployment abort**: Deploy fails with clear guidance if CORS not configured for web access unless `--setup-cors` provided
+- **CORS management service**: Complete CORS functions in S3 storage service including examination, configuration, and validation
+- **CLI integration**: `--setup-cors` flag automatically configures optimal CORS rules for gallery web access
+- **Intelligent CORS comparison**: Smart detection of whether current CORS rules match gallery requirements
+- **Default CORS rules**: Optimized CORS configuration for web access with CDN compatibility
+- **Comprehensive testing**: 11 new tests for CORS functionality and 5 tests for deploy command CORS validation
+- **Complete documentation**: Enhanced deploy command docs and S3 storage service docs with CORS examples
+
 ## 2025-10-28
 
 ### Phase 5: Enhanced Deploy Command Implementation Completed

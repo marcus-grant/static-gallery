@@ -5,8 +5,8 @@ This directory contains documentation for Galleria's service layer components an
 ## Services
 
 - **[File Processing Service](file_processing.md)** - Central photo collection processing with dual-hash metadata and incremental updates
-- **[Deployment Service](deployment.md)** - Metadata-driven deployment orchestration with atomic operations and hash-based change detection
-- **[S3 Storage Service](s3_storage.md)** - S3-compatible cloud storage operations with streaming uploads and in-memory EXIF modification
+- **[Deployment Service](deployment.md)** - Metadata-driven deployment orchestration with atomic operations, hash-based change detection, and CORS validation
+- **[S3 Storage Service](s3_storage.md)** - S3-compatible cloud storage operations with streaming uploads, in-memory EXIF modification, and CORS management
 - **[UUID Service](uuid_service.md)** - Photo UUID generation with RFC 9562 UUIDv7, Base32 encoding, and chronological ordering
 - **[EXIF Modification Service](exif_modification.md)** - In-memory EXIF modification with dual timezone handling and deployment hash calculation
 

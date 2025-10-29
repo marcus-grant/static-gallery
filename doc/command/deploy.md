@@ -28,6 +28,11 @@ python manage.py deploy [OPTIONS]
 - `--progress`: Show detailed progress during upload *(coming soon)*
 - `--invalidate-cdn`: Trigger CDN cache purge *(coming soon)*
 
+### CORS Configuration
+- `--setup-cors`: Configure bucket CORS rules for web access
+
+**CORS Validation**: The deploy command automatically examines bucket CORS configuration before deployment and will abort if CORS is not properly configured for web access unless `--setup-cors` is provided.
+
 ## Deployment Modes
 
 ### Metadata-Driven Deployment (Recommended)
@@ -122,6 +127,67 @@ S3_PUBLIC_SECRET_KEY = "your-secret-key"
 S3_PUBLIC_BUCKET = "your-bucket-name"
 S3_PUBLIC_REGION = "your-region"
 ```
+
+## CORS Configuration
+
+The deploy command automatically examines and validates bucket CORS configuration to ensure web access compatibility.
+
+### CORS Validation Process
+
+Before deployment begins, the command:
+
+1. **Examines current CORS rules** for the target bucket
+2. **Compares with expected rules** for gallery web access
+3. **Aborts deployment** if CORS is not properly configured
+4. **Provides clear guidance** on how to fix CORS issues
+
+### CORS Status Messages
+
+- **Configured correctly for web access**: CORS rules are optimal, deployment continues
+- **Configured but rules need updating**: CORS exists but doesn't match gallery requirements
+- **Not configured for web access**: No CORS rules found
+- **Could not examine CORS**: Permission or connectivity issues
+
+### CORS Configuration Examples
+
+```bash
+# Deploy fails if CORS not configured
+python manage.py deploy
+# Output: CORS Status: Not configured for web access
+#         Use --setup-cors to configure CORS for web access
+#         Deployment aborted: CORS configuration required for web access
+
+# Deploy and configure CORS automatically
+python manage.py deploy --setup-cors
+# Output: CORS Status: Not configured for web access
+#         Configuring CORS rules...
+#         CORS Status: Configured successfully
+#         Using metadata-driven deployment...
+
+# Deploy succeeds when CORS already configured
+python manage.py deploy
+# Output: CORS Status: Configured correctly for web access
+#         Using metadata-driven deployment...
+```
+
+### Default CORS Rules
+
+When using `--setup-cors`, the following rules are applied:
+
+```json
+{
+  "AllowedHeaders": ["*"],
+  "AllowedMethods": ["GET", "HEAD"],
+  "AllowedOrigins": ["*"],
+  "ExposeHeaders": ["ETag"],
+  "MaxAgeSeconds": 3600
+}
+```
+
+These rules allow:
+- Web browsers to access gallery photos
+- CDN services to cache content effectively
+- All origins for maximum compatibility
 
 ## Deployment Process
 
