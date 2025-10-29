@@ -215,7 +215,12 @@ def generate_gallery_metadata(photos: List[ProcessedPhoto], collection_name: str
         GalleryMetadata dataclass instance
     """
     settings_data = GallerySettings(
-        timestamp_offset_hours=getattr(settings, 'TIMESTAMP_OFFSET_HOURS', 0)
+        timestamp_offset_hours=getattr(settings, 'TIMESTAMP_OFFSET_HOURS', 0),
+        target_timezone_offset_hours=getattr(settings, 'TARGET_TIMEZONE_OFFSET_HOURS', 13),
+        web_size=getattr(settings, 'WEB_SIZE', (2048, 2048)),
+        thumb_size=getattr(settings, 'THUMB_SIZE', (400, 400)),
+        jpeg_quality=getattr(settings, 'JPEG_QUALITY', 85),
+        webp_quality=getattr(settings, 'WEBP_QUALITY', 85)
     )
     
     photo_metadata_list = []

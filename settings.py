@@ -57,9 +57,10 @@ WEBP_QUALITY = 85
 TIMESTAMP_OFFSET_HOURS = 0  # Offset to correct systematic timestamp errors (hours)
 TARGET_TIMEZONE_OFFSET_HOURS = 13  # Target timezone for EXIF deployment (13 = preserve original)
 
-# Load local settings if present
+# Load local settings if present (skip in test mode)
+TEST_MODE = os.getenv('GALLERIA_TEST_MODE', '').lower() in ('1', 'true', 'yes')
 LOCAL_SETTINGS_PATH = CONFIG_DIR / LOCAL_SETTINGS_FILENAME
-if LOCAL_SETTINGS_PATH.exists():
+if LOCAL_SETTINGS_PATH.exists() and not TEST_MODE:
     # Read and execute the local settings file
     local_namespace = {}
     with open(LOCAL_SETTINGS_PATH, 'r') as f:

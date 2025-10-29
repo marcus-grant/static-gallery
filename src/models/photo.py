@@ -107,7 +107,12 @@ class PhotoMetadata:
 class GallerySettings:
     """Settings structure for gallery metadata."""
     
-    timestamp_offset_hours: int
+    timestamp_offset_hours: int = 0
+    target_timezone_offset_hours: int = 13  # 13 = preserve original timezone
+    web_size: tuple = (2048, 2048)
+    thumb_size: tuple = (400, 400)
+    jpeg_quality: int = 85
+    webp_quality: int = 85
 
 
 @dataclass

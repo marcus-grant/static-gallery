@@ -116,7 +116,12 @@ class TestSettingsHierarchy:
 
     def test_s3_settings_defaults(self):
         """Test that S3 settings have None defaults."""
-        import settings as test_settings
+        # Set TEST_MODE to ensure clean defaults
+        with patch.dict(os.environ, {"GALLERIA_TEST_MODE": "1"}):
+            # Force reimport to pick up TEST_MODE
+            if "settings" in sys.modules:
+                del sys.modules["settings"]
+            import settings as test_settings
         
         # All S3 settings should default to None
         assert test_settings.S3_ARCHIVE_ENDPOINT is None
