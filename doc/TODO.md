@@ -44,10 +44,10 @@
 - Clear user guidance for CORS configuration
 
 **Current System State (2025-10-29 - Latest Commit: CORS Management Complete)**:
-- ✅ **EXIF timestamp correction** - Complete with -4 hour offset applied to all processing
+- ✅ **EXIF timestamp correction** - Complete with 0 hour offset (camera time was correct)
 - ✅ **JSON metadata system** - Complete with type-safe dataclasses and file hash calculation  
 - ✅ **Dual-hash metadata system** - PhotoMetadata now has both `file_hash` and `deployment_file_hash` fields
-- ✅ **Timezone settings** - Added `TARGET_TIMEZONE_OFFSET_HOURS = 13` (13 = preserve original timezone)
+- ✅ **Timezone settings** - Added `TARGET_TIMEZONE_OFFSET_HOURS = 2` (Swedish summer time)
 - ✅ **PhotoMetadataService** - Supports both filename parsing and JSON metadata reading
 - ✅ **Template debug service** - Fixed to use generic render() method
 - ✅ **Integration testing** - Full round-trip from photo processing to metadata consumption
@@ -212,11 +212,328 @@
 4. **Atomic operations** - metadata always reflects actual remote state
 5. **Settings separation** - timestamp correction vs timezone are different concerns
 
-## Real-world Deployment Testing **[NEXT PRIORITY]**
+## CRITICAL: Process-Photos Performance & Reliability Fix **[BLOCKING DEPLOYMENT - PRIORITY 1]**
+
+**Issue Summary**: Multiple critical issues making `process-photos` command unusable for production:
+1. Extreme performance issues (5+ minutes for 645 photos)
+2. No progress indication during long processing
+3. Memory consumption issues (accumulating 40MB+ photos in memory)
+4. No crash recovery/resume capability
+5. Missing timezone settings in metadata (blocking deployment)
+6. 3 failing tests blocking deployment
+
+**Root Causes**:
+- `process_dual_photo_collection()` loads all 645 photos worth of metadata into memory
+- Deployment hash calculation disabled as temporary fix (line 260 in file_processing.py)
+- `GallerySettings` missing `target_timezone_offset_hours` and other processing settings
+- No batch processing or progress reporting
+- No partial file persistence for crash recovery
+
+### **IMPLEMENTATION PLAN FOR NEW DEVELOPER**
+
+#### **REQUIRED READING BEFORE STARTING**
+1. **`doc/CONTRIBUTE.md`** - Development guidelines, testing workflow, commit format
+2. **`doc/personal-setup-notes.md`** - Current production settings, timezone analysis, S3 configuration
+3. **This section** - Complete implementation plan and technical specifications
+
+**Essential Context**:
+- Use `uv run pytest` for all testing (NOT `python -m pytest`)
+- Follow TDD workflow: write test → ensure it fails → implement → make it pass
+- Current production settings: `TIMESTAMP_OFFSET_HOURS = 0`, `TARGET_TIMEZONE_OFFSET_HOURS = 2`
+- 645 wedding photos, some up to 40MB each
+- Swedish timezone correction required (CEST = UTC+2)
+
+#### **Phase 1: Fix Failing Tests (IMMEDIATE)**
+**Location**: 3 failing tests block deployment
+- `test/test_dual_hash_integration.py::TestDualHashIntegration::test_deployment_hash_differs_from_file_hash_when_timezone_set`
+- `test/test_dual_hash_integration.py::TestDualHashIntegration::test_deployment_hash_changes_with_different_timezone_settings`  
+- `test/test_settings.py::TestSettingsHierarchy::test_s3_settings_defaults`
+
+**Root Cause**: Tests expect deployment hash calculation but it's disabled (line 260). Settings test polluted by `settings.local.py`.
+
+**Required Fixes**:
+1. **Fix settings test isolation**: Ensure `test_s3_settings_defaults` runs with clean defaults
+2. **Re-enable deployment hash calculation**: Restore proper EXIF modification simulation in `generate_gallery_metadata()`
+3. **Update GallerySettings dataclass**: Add missing `target_timezone_offset_hours` field
+
+#### **Phase 2: Rewrite Process-Photos Command (CORE)**
+**Location**: `src/command/process_photos.py` and `src/services/file_processing.py`
+
+**New Architecture - Batch Processing with Memory Management**:
+
+```python
+# Batch processing approach (10-20 photos per batch)
+def process_dual_photo_collection_batched(
+    full_source_dir: Path,
+    web_source_dir: Path, 
+    output_dir: Path,
+    collection_name: str,
+    batch_size: int = 15
+) -> dict:
+    """Process photos in batches with progress reporting and partial persistence."""
+    
+    # 1. Get all photo pairs upfront
+    photo_pairs = get_matched_photo_pairs(full_source_dir, web_source_dir)
+    total_photos = len(photo_pairs)
+    
+    # 2. Check for existing partials and handle resume/restart
+    handle_existing_partials(output_dir)
+    
+    # 3. Process in batches
+    start_time = time.time()
+    for batch_num, batch_start in enumerate(range(0, total_photos, batch_size)):
+        batch_end = min(batch_start + batch_size, total_photos)
+        batch_pairs = photo_pairs[batch_start:batch_end]
+        
+        # Process batch (keep only metadata in memory)
+        batch_metadata = process_photo_batch(batch_pairs, batch_num, collection_name)
+        
+        # Save partial file immediately
+        save_partial_metadata(batch_metadata, output_dir, batch_num)
+        
+        # Clear batch from memory
+        del batch_metadata
+        
+        # Show progress with time estimate
+        show_progress(batch_end, total_photos, start_time)
+    
+    # 4. Merge all partials into final metadata file
+    merge_partial_files(output_dir, collection_name)
+```
+
+**Key Implementation Details**:
+
+1. **Memory Management**:
+   ```python
+   def process_photo_batch(batch_pairs, batch_num, collection_name):
+       batch_photos = []
+       for full_path, web_path in batch_pairs:
+           # Process one photo
+           photo_data = process_single_photo(full_path, web_path)
+           
+           # Calculate deployment hash with EXIF modification
+           photo_data.deployment_file_hash = calculate_deployment_hash(full_path)
+           
+           # Keep only metadata, discard photo content immediately
+           batch_photos.append(photo_data)
+           # photo content/bytes are cleared by function exit
+       
+       return generate_batch_metadata(batch_photos, collection_name)
+   ```
+
+2. **Partial File Management**:
+   ```python
+   # Save: gallery-metadata.part001.json, gallery-metadata.part002.json, etc.
+   # Final merge: combine all parts into gallery-metadata.json
+   # Cleanup: delete all .part*.json files after successful merge
+   ```
+
+3. **Progress Reporting**:
+   ```python
+   def show_progress(current, total, start_time):
+       elapsed = time.time() - start_time
+       rate = current / elapsed if elapsed > 0 else 0
+       remaining = (total - current) / rate if rate > 0 else 0
+       
+       print(f"Processing photo {current}/{total} (ETA: {format_time(remaining)} remaining)")
+   ```
+
+4. **Resume/Restart Functionality**:
+   ```python
+   # Add CLI flags: --resume, --restart
+   # If partials exist without flags: stop and prompt user
+   # With --resume: validate latest partial, prompt confirmation, continue
+   # With --restart: delete partials and start fresh
+   ```
+
+#### **Phase 3: Expand GallerySettings Dataclass**
+**Location**: `src/models/photo.py`
+
+**Current GallerySettings** (incomplete):
+```python
+@dataclass
+class GallerySettings:
+    timestamp_offset_hours: int = 0
+```
+
+**Required Complete GallerySettings**:
+```python
+@dataclass  
+class GallerySettings:
+    timestamp_offset_hours: int = 0
+    target_timezone_offset_hours: int = 13  # NEW: Critical for deployment comparison
+    web_size: tuple = (2048, 2048)          # NEW: Affects web photo output
+    thumb_size: tuple = (400, 400)          # NEW: Affects thumbnail output  
+    jpeg_quality: int = 85                  # NEW: Affects photo quality
+    webp_quality: int = 85                  # NEW: Affects thumbnail quality
+```
+
+**Integration**: Update `generate_gallery_metadata()` to populate all fields from `settings.py`.
+
+#### **Phase 4: Deployment Hash Calculation**
+**Location**: `src/services/file_processing.py:258-285`
+
+**Current State**: Disabled with placeholder
+```python
+# Calculate deployment file hash - temporarily use original hash for speed
+# TODO: Calculate actual deployment hash during deployment, not processing
+deployment_hash = photo.file_hash or ""
+```
+
+**Required Implementation**: Re-enable within batch processing
+```python
+def calculate_deployment_hash(photo_path: Path) -> str:
+    """Calculate hash of photo after EXIF modifications applied."""
+    from src.services.s3_storage import modify_exif_in_memory
+    import settings
+    
+    # Read photo into memory
+    with open(photo_path, 'rb') as f:
+        photo_bytes = f.read()
+    
+    # Apply EXIF modifications (timestamp + timezone)
+    corrected_timestamp = get_corrected_timestamp(photo_path)
+    modified_bytes = modify_exif_in_memory(
+        photo_bytes, 
+        corrected_timestamp,
+        settings.TARGET_TIMEZONE_OFFSET_HOURS
+    )
+    
+    # Calculate hash and immediately clear memory
+    hash_value = hashlib.sha256(modified_bytes).hexdigest()
+    del photo_bytes, modified_bytes  # Clear memory immediately
+    
+    return hash_value
+```
+
+#### **Phase 5: Enhanced Command Interface**
+**Location**: `src/command/process_photos.py`
+
+**Add CLI Options**:
+```python
+@click.option('--resume', is_flag=True, help='Resume from existing partial files')
+@click.option('--restart', is_flag=True, help='Delete partials and start fresh')
+@click.option('--batch-size', default=15, help='Photos per batch (memory management)')
+```
+
+**Partial File Handling Logic**:
+```python
+def handle_existing_partials(output_dir: Path, resume: bool, restart: bool):
+    """Handle existing partial files based on user choice."""
+    partials = list(output_dir.glob('gallery-metadata.part*.json'))
+    
+    if partials and not (resume or restart):
+        latest_partial = max(partials, key=lambda p: p.stat().st_mtime)
+        age_hours = (time.time() - latest_partial.stat().st_mtime) / 3600
+        
+        if age_hours <= 24:
+            batch_num = extract_batch_number(latest_partial)
+            click.echo(f"Error: Found existing partial files from {age_hours:.1f} hours ago (batch {batch_num} complete).")
+            click.echo("Use --resume to continue or --restart to start fresh.")
+            sys.exit(1)
+        else:
+            # Auto-cleanup old partials
+            cleanup_partials(partials)
+    
+    elif restart and partials:
+        cleanup_partials(partials)
+        click.echo(f"Cleaned up {len(partials)} partial files. Starting fresh.")
+    
+    elif resume and partials:
+        validate_and_resume(partials)
+```
+
+### **TESTING REQUIREMENTS**
+
+1. **Fix Existing Tests**: Ensure all 289 tests pass
+2. **New Batch Processing Tests**: Test batch logic, partial files, memory management  
+3. **Resume/Restart Tests**: Test CLI flag behavior and partial file validation
+4. **Settings Tests**: Test complete GallerySettings recording and comparison
+5. **Performance Tests**: Verify memory usage stays low during processing
+
+### **SUCCESS CRITERIA**
+
+1. ✅ **All tests passing** (zero failures)
+2. ✅ **Fast processing** (< 2 minutes for 645 photos vs 5+ minutes before)
+3. ✅ **Low memory usage** (no accumulation of 40MB photos in memory)
+4. ✅ **Progress visibility** ("Processing photo 145/645 (ETA: 3m 42s remaining)")
+5. ✅ **Crash recovery** (resume from partials with --resume flag)
+6. ✅ **Complete metadata** (all processing settings recorded for deployment comparison)
+7. ✅ **Production ready** (can run `process-photos` → `build` → `deploy` successfully)
+
+### **CRITICAL FILES TO MODIFY**
+
+1. **`src/command/process_photos.py`** - Add CLI flags, progress reporting
+2. **`src/services/file_processing.py`** - Rewrite `process_dual_photo_collection()` with batching
+3. **`src/models/photo.py`** - Expand `GallerySettings` dataclass  
+4. **`test/test_dual_hash_integration.py`** - Fix failing deployment hash tests
+5. **`test/test_settings.py`** - Fix settings test isolation
+
+**Status**: Ready for implementation. All technical decisions made. Clear success criteria defined.
+
+## Real-world Deployment Testing **[NEXT PRIORITY AFTER FIXES]**
 
 **Objective**: Set up and test production S3/Hetzner bucket with CDN integration.
 
-**Prerequisites**: ✅ All deployment infrastructure complete (Phases 1-5). Ready for production testing.
+**Prerequisites**: ✅ All deployment infrastructure complete (Phases 1-5 + CORS). ⚠️ Timezone metadata issue must be resolved first.
+
+### Current Walkthrough Progress
+
+**Status**: In progress - blocking issues identified during setup
+
+**Completed Steps**:
+1. ✅ **Personal configuration analysis** - EXIF timezone issue identified and settings determined
+2. ✅ **Settings configuration** - `settings.local.py` configured with correct timezone settings
+3. ✅ **Process-photos execution** - Completed in 1m23s (645 photos processed)
+4. ⚠️ **Critical issues discovered** - Timezone metadata and performance issues must be resolved
+
+**Pending Steps**:
+1. **Fix timezone metadata issue** - Add `target_timezone_offset_hours` to metadata
+2. **Verify test suites pass** - Ensure performance fix doesn't break functionality  
+3. **Re-run process-photos** - Generate metadata with complete settings
+4. **Execute build command** - Generate static site
+5. **Execute deploy --setup-cors** - First production deployment
+6. **Verify EXIF corrections** - Confirm timezone fixes in deployed photos
+
+### Production Deployment Instructions
+
+**READY TO DEPLOY**: The system is production-ready. Follow these steps for first deployment:
+
+#### Step 1: Configure Production Settings
+
+Add to `settings.local.py`:
+```python
+# S3 Production Configuration  
+S3_PUBLIC_ENDPOINT = "https://eu-central-1.s3.hetznerobjects.com"  # Your actual endpoint
+S3_PUBLIC_BUCKET = "your-actual-bucket-name"  # From bucket setup
+S3_PUBLIC_REGION = "eu-central-1"  # Your bucket region
+
+# Photo Processing Settings
+TIMESTAMP_OFFSET_HOURS = -4  # Your camera systematic correction
+TARGET_TIMEZONE_OFFSET_HOURS = -5  # Target timezone (e.g., EST = -5, CET = +1)
+```
+
+#### Step 2: Set Environment Variables for Secrets
+```bash
+export GALLERIA_S3_PUBLIC_ACCESS_KEY="your_access_key"
+export GALLERIA_S3_PUBLIC_SECRET_KEY="your_secret_key"
+```
+
+#### Step 3: Complete Deployment Workflow
+```bash
+# Process photos with timezone corrections
+uv run python manage.py process-photos
+
+# Build static site
+uv run python manage.py build
+
+# Deploy with automatic CORS setup
+uv run python manage.py deploy --setup-cors
+```
+
+**What happens**: System processes photos with `-4h` correction, applies target timezone to EXIF, generates dual hashes, validates/configures CORS, and uploads only changed photos using metadata comparison.
+
+**Next steps after deployment**: CDN setup using `doc/bunnycdn-setup.md`
 
 ### S3 Bucket Setup Requirements
 
