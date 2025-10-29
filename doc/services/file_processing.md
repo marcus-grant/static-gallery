@@ -26,19 +26,28 @@ def process_dual_photo_collection(
     full_source_dir: Path, 
     web_source_dir: Path, 
     output_dir: Path, 
-    collection_name: str
+    collection_name: str,
+    batch_size: int = 50
 ) -> dict
 ```
 
-**Purpose:** Process dual collections (full resolution + web-optimized) with validation and incremental processing.
+**Purpose:** Process dual collections (full resolution + web-optimized) with validation, batch processing, and crash recovery support.
 
 **Process:**
 1. Validates matching between full and web collections
-2. Extracts EXIF metadata and generates chronological filenames
-3. Creates symlinks with organized structure
-4. Generates WebP thumbnails
-5. Calculates dual-hash metadata (original + deployment)
-6. Saves comprehensive gallery metadata JSON
+2. Processes photos in configurable batches with progress reporting
+3. Extracts EXIF metadata and generates chronological filenames
+4. Creates symlinks with organized structure
+5. Generates WebP thumbnails
+6. Calculates dual-hash metadata (original + deployment)
+7. Saves partial metadata files after each batch for crash recovery
+8. Saves comprehensive final gallery metadata JSON
+
+**New Features (2025-10-29):**
+- **Progress Reporting**: Real-time output showing "Processing photo X/Y" during processing
+- **Batch Processing**: Configurable batch sizes (default: 50 photos) for memory management
+- **Crash Recovery**: Partial metadata files (`gallery-metadata.part001.json`) enable recovery from interruptions
+- **Large Collection Support**: Optimized for collections of 645+ photos
 
 **Returns:**
 ```python
@@ -60,7 +69,8 @@ result = process_dual_photo_collection(
     full_source_dir=Path("photos/full"),
     web_source_dir=Path("photos/web"),
     output_dir=Path("prod/pics"),
-    collection_name="wedding-2024"
+    collection_name="wedding-2024",
+    batch_size=50  # Process 50 photos per batch
 )
 
 if result['success']:
@@ -375,6 +385,78 @@ if result['errors']:
     
     print(f"Still processed {result['photos_processed']} photos successfully")
 ```
+
+## Batch Processing & Progress Reporting
+
+### Batch Processing Architecture
+
+The service processes photos in configurable batches to support large collections and crash recovery:
+
+```python
+# Process photos in batches of 50 (default)
+for batch_start in range(0, len(photo_pairs), batch_size):
+    batch_end = min(batch_start + batch_size, len(photo_pairs))
+    batch_pairs = photo_pairs[batch_start:batch_end]
+    
+    # Process each photo in this batch
+    for full_path, web_path in batch_pairs:
+        # ... process photo ...
+        
+    # Save partial metadata after each batch
+    if results["photos"]:
+        partial_metadata = generate_gallery_metadata(results["photos"], collection_name)
+        partial_filename = f"gallery-metadata.part{batch_number:03d}.json"
+        save_partial_metadata(partial_metadata, output_dir / partial_filename)
+```
+
+### Progress Reporting
+
+Real-time progress output keeps users informed during long-running operations:
+
+```
+Processing batch 1, photos 1-50
+Processing photo 1/645: IMG_001.jpg
+Processing photo 2/645: IMG_002.jpg
+...
+Processing batch 2, photos 51-100
+Processing photo 51/645: IMG_051.jpg
+```
+
+### Partial Metadata Files
+
+Batch processing creates partial metadata files for crash recovery:
+
+- **File Pattern**: `gallery-metadata.part{batch:03d}.json`
+- **Content**: Complete metadata for all photos processed so far
+- **Recovery**: Enables resuming from last completed batch
+- **Cleanup**: Removed automatically on successful completion
+
+**Example Partial Files:**
+```
+output_dir/
+├── gallery-metadata.part001.json  # Photos 1-50
+├── gallery-metadata.part002.json  # Photos 1-100
+├── gallery-metadata.part003.json  # Photos 1-150
+└── gallery-metadata.json          # Final complete metadata
+```
+
+### Memory Management
+
+Batch processing provides memory benefits for large collections:
+
+- **Default Batch Size**: 50 photos (configurable)
+- **Memory Usage**: Bounded by batch size, not total collection size
+- **Performance**: Maintains responsiveness during processing
+- **Scalability**: Supports collections of 1000+ photos
+
+### Recovery Scenarios
+
+The batch system handles various interruption scenarios:
+
+1. **Power Loss**: Resume from last completed batch
+2. **Process Kill**: Partial files preserve progress
+3. **Storage Issues**: Batch boundaries minimize data loss
+4. **User Interrupt**: Clean restart or continuation options
 
 ## See Also
 

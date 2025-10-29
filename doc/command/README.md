@@ -11,7 +11,7 @@ This directory contains detailed documentation for Galleria's command-line inter
 ### Photo Processing
 
 - **find-samples** - Find sample photos for testing and development
-- **process-photos** - Process original photos into web-ready formats with chronological filenames
+- **[process-photos](process-photos.md)** - Process original photos into web-ready formats with chronological filenames, batch processing, and crash recovery
 - **upload-photos** - Upload processed photos to cloud storage
 
 ### Site Generation & Deployment
