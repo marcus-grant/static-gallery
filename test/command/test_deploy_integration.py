@@ -98,33 +98,40 @@ class TestDeployCommandIntegration:
                     mock_client = Mock()
                     mock_get_client.return_value = mock_client
                     
-                    with patch('src.command.deploy.deploy_gallery_metadata') as mock_deploy:
-                        mock_deploy.return_value = {
+                    with patch('src.command.deploy.examine_bucket_cors') as mock_cors:
+                        mock_cors.return_value = {
                             'success': True,
-                            'photos_uploaded': 2,
-                            'metadata_uploaded': True,
-                            'message': 'Deployment completed successfully'
+                            'configured': True,
+                            'needs_update': False
                         }
                         
-                        result = runner.invoke(deploy)
-                        
-                        # Debug output for failed test
-                        if result.exit_code != 0:
-                            print(f"Exit code: {result.exit_code}")
-                            print(f"Output: {result.output}")
-                            print(f"Exception: {result.exception}")
-                        
-                        assert result.exit_code == 0
-                        assert "Deployment completed successfully" in result.output
-                        
-                        # Verify deploy_gallery_metadata was called with correct parameters
-                        mock_deploy.assert_called_once()
-                        args, kwargs = mock_deploy.call_args
-                        assert kwargs['client'] == mock_client
-                        assert kwargs['bucket'] == "test-bucket"
-                        assert isinstance(kwargs['local_metadata'], GalleryMetadata)
-                        assert kwargs['prod_dir'] == prod_dir
-                        assert kwargs['dry_run'] is False
+                        with patch('src.command.deploy.deploy_gallery_metadata') as mock_deploy:
+                            mock_deploy.return_value = {
+                                'success': True,
+                                'photos_uploaded': 2,
+                                'metadata_uploaded': True,
+                                'message': 'Deployment completed successfully'
+                            }
+                            
+                            result = runner.invoke(deploy)
+                            
+                            # Debug output for failed test
+                            if result.exit_code != 0:
+                                print(f"Exit code: {result.exit_code}")
+                                print(f"Output: {result.output}")
+                                print(f"Exception: {result.exception}")
+                            
+                            assert result.exit_code == 0
+                            assert "Deployment completed successfully" in result.output
+                            
+                            # Verify deploy_gallery_metadata was called with correct parameters
+                            mock_deploy.assert_called_once()
+                            args, kwargs = mock_deploy.call_args
+                            assert kwargs['client'] == mock_client
+                            assert kwargs['bucket'] == "test-bucket"
+                            assert isinstance(kwargs['local_metadata'], GalleryMetadata)
+                            assert kwargs['prod_dir'] == prod_dir
+                            assert kwargs['dry_run'] is False
     
     def test_dry_run_shows_deployment_plan(self, tmp_path, sample_gallery_metadata):
         """Test --dry-run option shows deployment plan without uploading."""
@@ -151,26 +158,32 @@ class TestDeployCommandIntegration:
         with patch.dict(sys.modules, {'settings': mock_settings}):
             with patch('src.command.deploy.validate_s3_config', return_value=(True, "")):
                 with patch('src.command.deploy.get_s3_client'):
-                    with patch('src.command.deploy.deploy_gallery_metadata') as mock_deploy:
-                        mock_deploy.return_value = {
+                    with patch('src.command.deploy.examine_bucket_cors') as mock_cors:
+                        mock_cors.return_value = {
                             'success': True,
-                            'dry_run': True,
-                            'plan': deployment_plan,
-                            'message': 'Dry run completed'
+                            'configured': True,
+                            'needs_update': False
                         }
-                        
-                        result = runner.invoke(deploy, ['--dry-run', '--photos-only'])
-                        
-                        assert result.exit_code == 0
-                        assert "DRY RUN" in result.output
-                        assert "Photos to upload: 1" in result.output
-                        assert "Photos unchanged: 1" in result.output
-                        assert "Dry run completed - no files were uploaded" in result.output
-                        
-                        # Verify dry_run was passed correctly
-                        mock_deploy.assert_called_once()
-                        args, kwargs = mock_deploy.call_args
-                        assert kwargs['dry_run'] is True
+                        with patch('src.command.deploy.deploy_gallery_metadata') as mock_deploy:
+                            mock_deploy.return_value = {
+                                'success': True,
+                                'dry_run': True,
+                                'plan': deployment_plan,
+                                'message': 'Dry run completed'
+                            }
+                            
+                            result = runner.invoke(deploy, ['--dry-run', '--photos-only'])
+                            
+                            assert result.exit_code == 0
+                            assert "DRY RUN" in result.output
+                            assert "Photos to upload: 1" in result.output
+                            assert "Photos unchanged: 1" in result.output
+                            assert "Dry run completed - no files were uploaded" in result.output
+                            
+                            # Verify dry_run was passed correctly
+                            mock_deploy.assert_called_once()
+                            args, kwargs = mock_deploy.call_args
+                            assert kwargs['dry_run'] is True
     
     def test_force_deployment_ignores_hash_comparison(self, tmp_path, sample_gallery_metadata):
         """Test --force option uploads all photos ignoring hash comparison."""
@@ -191,18 +204,24 @@ class TestDeployCommandIntegration:
         with patch.dict(sys.modules, {'settings': mock_settings}):
             with patch('src.command.deploy.validate_s3_config', return_value=(True, "")):
                 with patch('src.command.deploy.get_s3_client'):
-                    with patch('src.command.deploy.deploy_gallery_metadata') as mock_deploy:
-                        mock_deploy.return_value = {
+                    with patch('src.command.deploy.examine_bucket_cors') as mock_cors:
+                        mock_cors.return_value = {
                             'success': True,
-                            'photos_uploaded': 2,
-                            'metadata_uploaded': True,
-                            'message': 'Force deployment completed'
+                            'configured': True,
+                            'needs_update': False
                         }
-                        
-                        result = runner.invoke(deploy, ['--force', '--photos-only'])
-                        
-                        assert result.exit_code == 0
-                        # Verify force mode was used (implementation needed)
+                        with patch('src.command.deploy.deploy_gallery_metadata') as mock_deploy:
+                            mock_deploy.return_value = {
+                                'success': True,
+                                'photos_uploaded': 2,
+                                'metadata_uploaded': True,
+                                'message': 'Force deployment completed'
+                            }
+                            
+                            result = runner.invoke(deploy, ['--force', '--photos-only'])
+                            
+                            assert result.exit_code == 0
+                            # Verify force mode was used (implementation needed)
     
     def test_progress_reporting(self, tmp_path, sample_gallery_metadata):
         """Test --progress option shows detailed progress during upload."""

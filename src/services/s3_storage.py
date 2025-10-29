@@ -279,3 +279,146 @@ def modify_exif_in_memory(
     img.save(output_buffer, format='JPEG', exif=exif_bytes)
     
     return output_buffer.getvalue()
+
+
+def get_bucket_cors(client, bucket: str) -> Dict[str, Any]:
+    """Get current CORS configuration for an S3 bucket.
+    
+    Args:
+        client: boto3 S3 client
+        bucket: S3 bucket name
+        
+    Returns:
+        Dict with:
+        - success: bool indicating if operation succeeded
+        - cors_rules: list of CORS rules if successful
+        - error: error message if failed
+    """
+    try:
+        response = client.get_bucket_cors(Bucket=bucket)
+        return {
+            'success': True,
+            'cors_rules': response.get('CORSRules', [])
+        }
+    except ClientError as e:
+        error_code = e.response['Error']['Code']
+        if error_code == 'NoSuchCORSConfiguration':
+            return {
+                'success': True,
+                'cors_rules': []
+            }
+        else:
+            return {
+                'success': False,
+                'error': f"Failed to get CORS configuration: {str(e)}"
+            }
+
+
+def configure_bucket_cors(client, bucket: str, cors_rules: list) -> Dict[str, Any]:
+    """Configure CORS rules for an S3 bucket.
+    
+    Args:
+        client: boto3 S3 client
+        bucket: S3 bucket name
+        cors_rules: List of CORS rule dictionaries
+        
+    Returns:
+        Dict with:
+        - success: bool indicating if operation succeeded
+        - error: error message if failed
+    """
+    try:
+        cors_configuration = {'CORSRules': cors_rules}
+        client.put_bucket_cors(
+            Bucket=bucket,
+            CORSConfiguration=cors_configuration
+        )
+        return {'success': True}
+    except ClientError as e:
+        return {
+            'success': False,
+            'error': f"Failed to configure CORS: {str(e)}"
+        }
+
+
+def get_default_gallery_cors_rules() -> list:
+    """Get default CORS rules for gallery web access.
+    
+    Returns:
+        List of CORS rule dictionaries suitable for gallery deployment
+    """
+    return [
+        {
+            'AllowedHeaders': ['*'],
+            'AllowedMethods': ['GET', 'HEAD'],
+            'AllowedOrigins': ['*'],
+            'ExposeHeaders': ['ETag'],
+            'MaxAgeSeconds': 3600
+        }
+    ]
+
+
+def cors_rules_match(current_rules: list, expected_rules: list) -> bool:
+    """Check if current CORS rules match expected rules.
+    
+    Args:
+        current_rules: Current CORS rules from bucket
+        expected_rules: Expected CORS rules
+        
+    Returns:
+        True if rules match, False otherwise
+    """
+    if len(current_rules) != len(expected_rules):
+        return False
+    
+    for current, expected in zip(current_rules, expected_rules):
+        # Check required fields match
+        for field in ['AllowedMethods', 'AllowedOrigins']:
+            if set(current.get(field, [])) != set(expected.get(field, [])):
+                return False
+        
+        # Check MaxAgeSeconds if specified
+        if expected.get('MaxAgeSeconds') and current.get('MaxAgeSeconds') != expected.get('MaxAgeSeconds'):
+            return False
+    
+    return True
+
+
+def examine_bucket_cors(client, bucket: str) -> Dict[str, Any]:
+    """Examine bucket CORS configuration and compare with expected rules.
+    
+    Args:
+        client: boto3 S3 client
+        bucket: S3 bucket name
+        
+    Returns:
+        Dict with:
+        - success: bool indicating if examination succeeded
+        - configured: bool indicating if CORS is properly configured
+        - current_rules: current CORS rules
+        - expected_rules: expected CORS rules for gallery
+        - needs_update: bool indicating if CORS rules need updating
+        - error: error message if failed
+    """
+    # Get current CORS rules
+    cors_result = get_bucket_cors(client, bucket)
+    if not cors_result['success']:
+        return {
+            'success': False,
+            'error': cors_result['error']
+        }
+    
+    current_rules = cors_result['cors_rules']
+    expected_rules = get_default_gallery_cors_rules()
+    
+    # Check if rules match
+    configured = len(current_rules) > 0
+    needs_update = not cors_rules_match(current_rules, expected_rules)
+    
+    return {
+        'success': True,
+        'configured': configured,
+        'current_rules': current_rules,
+        'expected_rules': expected_rules,
+        'needs_update': needs_update
+    }

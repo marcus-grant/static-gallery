@@ -66,22 +66,28 @@ class TestDeployCommandFunctionality:
         with patch.dict(sys.modules, {'settings': mock_settings}):
             with patch('src.command.deploy.validate_s3_config', return_value=(True, "")):
                 with patch('src.command.deploy.get_s3_client') as mock_client:
-                    with patch('src.command.deploy.deploy_directory_to_s3') as mock_deploy:
-                        mock_deploy.return_value = {
+                    with patch('src.command.deploy.examine_bucket_cors') as mock_cors:
+                        mock_cors.return_value = {
                             'success': True,
-                            'total_files': 2,
-                            'uploaded_files': 2,
-                            'skipped_files': 0,
-                            'failed_files': 0,
-                            'total_size': 1024,
-                            'errors': []
+                            'configured': True,
+                            'needs_update': False
                         }
-                        
-                        result = runner.invoke(deploy)
-                        
-                        assert result.exit_code == 0
-                        assert "Deployment completed successfully" in result.output
-                        assert mock_deploy.call_count == 2  # photos + static site
+                        with patch('src.command.deploy.deploy_directory_to_s3') as mock_deploy:
+                            mock_deploy.return_value = {
+                                'success': True,
+                                'total_files': 2,
+                                'uploaded_files': 2,
+                                'skipped_files': 0,
+                                'failed_files': 0,
+                                'total_size': 1024,
+                                'errors': []
+                            }
+                            
+                            result = runner.invoke(deploy)
+                            
+                            assert result.exit_code == 0
+                            assert "Deployment completed successfully" in result.output
+                            assert mock_deploy.call_count == 2  # photos + static site
     
     def test_photos_only_deployment(self, tmp_path):
         """Test deployment with --photos-only flag."""
@@ -96,22 +102,28 @@ class TestDeployCommandFunctionality:
         with patch.dict(sys.modules, {'settings': mock_settings}):
             with patch('src.command.deploy.validate_s3_config', return_value=(True, "")):
                 with patch('src.command.deploy.get_s3_client'):
-                    with patch('src.command.deploy.deploy_directory_to_s3') as mock_deploy:
-                        mock_deploy.return_value = {
-                            'success': True, 
-                            'total_files': 1,
-                            'uploaded_files': 1,
-                            'skipped_files': 0,
-                            'failed_files': 0,
-                            'errors': []
+                    with patch('src.command.deploy.examine_bucket_cors') as mock_cors:
+                        mock_cors.return_value = {
+                            'success': True,
+                            'configured': True,
+                            'needs_update': False
                         }
-                        
-                        result = runner.invoke(deploy, ['--photos-only'])
-                        
-                        assert result.exit_code == 0
-                        assert mock_deploy.call_count == 1  # Only photos
-                        args, kwargs = mock_deploy.call_args
-                        assert kwargs['prefix'] == 'photos'
+                        with patch('src.command.deploy.deploy_directory_to_s3') as mock_deploy:
+                            mock_deploy.return_value = {
+                                'success': True, 
+                                'total_files': 1,
+                                'uploaded_files': 1,
+                                'skipped_files': 0,
+                                'failed_files': 0,
+                                'errors': []
+                            }
+                            
+                            result = runner.invoke(deploy, ['--photos-only'])
+                            
+                            assert result.exit_code == 0
+                            assert mock_deploy.call_count == 1  # Only photos
+                            args, kwargs = mock_deploy.call_args
+                            assert kwargs['prefix'] == 'photos'
     
     def test_site_only_deployment(self, tmp_path):
         """Test deployment with --site-only flag."""
@@ -127,22 +139,28 @@ class TestDeployCommandFunctionality:
         with patch.dict(sys.modules, {'settings': mock_settings}):
             with patch('src.command.deploy.validate_s3_config', return_value=(True, "")):
                 with patch('src.command.deploy.get_s3_client'):
-                    with patch('src.command.deploy.deploy_directory_to_s3') as mock_deploy:
-                        mock_deploy.return_value = {
-                            'success': True, 
-                            'total_files': 1,
-                            'uploaded_files': 1,
-                            'skipped_files': 0,
-                            'failed_files': 0,
-                            'errors': []
+                    with patch('src.command.deploy.examine_bucket_cors') as mock_cors:
+                        mock_cors.return_value = {
+                            'success': True,
+                            'configured': True,
+                            'needs_update': False
                         }
-                        
-                        result = runner.invoke(deploy, ['--site-only'])
-                        
-                        assert result.exit_code == 0
-                        assert mock_deploy.call_count == 1  # Only static site
-                        args, kwargs = mock_deploy.call_args
-                        assert kwargs['prefix'] == ''
+                        with patch('src.command.deploy.deploy_directory_to_s3') as mock_deploy:
+                            mock_deploy.return_value = {
+                                'success': True, 
+                                'total_files': 1,
+                                'uploaded_files': 1,
+                                'skipped_files': 0,
+                                'failed_files': 0,
+                                'errors': []
+                            }
+                            
+                            result = runner.invoke(deploy, ['--site-only'])
+                            
+                            assert result.exit_code == 0
+                            assert mock_deploy.call_count == 1  # Only static site
+                            args, kwargs = mock_deploy.call_args
+                            assert kwargs['prefix'] == ''
 
 
 class TestDeployCommandEnhanced:
@@ -199,3 +217,215 @@ class TestDeployCommandEnhanced:
         
         with pytest.raises(json.JSONDecodeError):
             load_local_gallery_metadata(prod_dir)
+
+
+class TestDeployCommandCORSValidation:
+    """Test deploy command CORS validation and early exit behavior."""
+    
+    def test_deploy_exits_early_when_cors_not_configured(self, tmp_path):
+        """Test deploy command exits early when CORS is not configured and --setup-cors not provided."""
+        from src.command.deploy import deploy
+        from click.testing import CliRunner
+        
+        # Create minimal directory structure
+        prod_dir = tmp_path / "prod" / "pics"
+        prod_dir.mkdir(parents=True)
+        
+        runner = CliRunner()
+        
+        with patch('src.command.deploy.validate_s3_config', return_value=(True, "")):
+            with patch('src.command.deploy.get_s3_client') as mock_get_client:
+                mock_client = Mock()
+                mock_get_client.return_value = mock_client
+                
+                with patch('src.command.deploy.examine_bucket_cors') as mock_cors:
+                    # Mock CORS as not configured
+                    mock_cors.return_value = {
+                        'success': True,
+                        'configured': False,
+                        'needs_update': True
+                    }
+                    
+                    with patch.dict(sys.modules, {'settings': Mock(
+                        BASE_DIR=tmp_path,
+                        S3_PUBLIC_BUCKET="test-bucket",
+                        S3_PUBLIC_ENDPOINT="https://s3.example.com",
+                        S3_PUBLIC_ACCESS_KEY="test-key",
+                        S3_PUBLIC_SECRET_KEY="test-secret",
+                        S3_PUBLIC_REGION="us-east-1"
+                    )}):
+                        result = runner.invoke(deploy, ['--source', str(prod_dir)])
+                        
+                        assert result.exit_code == 1
+                        assert "CORS Status: Not configured for web access" in result.output
+                        assert "Deployment aborted: CORS configuration required for web access" in result.output
+                        assert "Use --setup-cors to configure CORS" in result.output
+    
+    def test_deploy_exits_early_when_cors_needs_update(self, tmp_path):
+        """Test deploy command exits early when CORS needs updating and --setup-cors not provided."""
+        from src.command.deploy import deploy
+        from click.testing import CliRunner
+        
+        prod_dir = tmp_path / "prod" / "pics"
+        prod_dir.mkdir(parents=True)
+        
+        runner = CliRunner()
+        
+        with patch('src.command.deploy.validate_s3_config', return_value=(True, "")):
+            with patch('src.command.deploy.get_s3_client') as mock_get_client:
+                mock_client = Mock()
+                mock_get_client.return_value = mock_client
+                
+                with patch('src.command.deploy.examine_bucket_cors') as mock_cors:
+                    # Mock CORS as configured but needing update
+                    mock_cors.return_value = {
+                        'success': True,
+                        'configured': True,
+                        'needs_update': True
+                    }
+                    
+                    with patch.dict(sys.modules, {'settings': Mock(
+                        BASE_DIR=tmp_path,
+                        S3_PUBLIC_BUCKET="test-bucket",
+                        S3_PUBLIC_ENDPOINT="https://s3.example.com",
+                        S3_PUBLIC_ACCESS_KEY="test-key",
+                        S3_PUBLIC_SECRET_KEY="test-secret",
+                        S3_PUBLIC_REGION="us-east-1"
+                    )}):
+                        result = runner.invoke(deploy, ['--source', str(prod_dir)])
+                        
+                        assert result.exit_code == 1
+                        assert "CORS Status: Configured but rules need updating" in result.output
+                        assert "Deployment aborted: CORS configuration required for web access" in result.output
+                        assert "Use --setup-cors to update CORS rules" in result.output
+    
+    def test_deploy_continues_when_cors_properly_configured(self, tmp_path):
+        """Test deploy command continues when CORS is properly configured."""
+        from src.command.deploy import deploy
+        from click.testing import CliRunner
+        
+        prod_dir = tmp_path / "prod" / "pics"
+        prod_dir.mkdir(parents=True)
+        
+        runner = CliRunner()
+        
+        with patch('src.command.deploy.validate_s3_config', return_value=(True, "")):
+            with patch('src.command.deploy.get_s3_client') as mock_get_client:
+                mock_client = Mock()
+                mock_get_client.return_value = mock_client
+                
+                with patch('src.command.deploy.examine_bucket_cors') as mock_cors:
+                    # Mock CORS as properly configured
+                    mock_cors.return_value = {
+                        'success': True,
+                        'configured': True,
+                        'needs_update': False
+                    }
+                    
+                    with patch('src.command.deploy.deploy_directory_to_s3') as mock_deploy:
+                        mock_deploy.return_value = {
+                            'success': True,
+                            'uploaded_files': 5,
+                            'skipped_files': 0,
+                            'total_files': 5
+                        }
+                        
+                        with patch.dict(sys.modules, {'settings': Mock(
+                            BASE_DIR=tmp_path,
+                            S3_PUBLIC_BUCKET="test-bucket",
+                            S3_PUBLIC_ENDPOINT="https://s3.example.com",
+                            S3_PUBLIC_ACCESS_KEY="test-key",
+                            S3_PUBLIC_SECRET_KEY="test-secret",
+                            S3_PUBLIC_REGION="us-east-1"
+                        )}):
+                            result = runner.invoke(deploy, ['--source', str(prod_dir)])
+                            
+                            # Should not exit early - deployment continues
+                            assert "CORS Status: Configured correctly for web access" in result.output
+                            assert "Deployment aborted" not in result.output
+    
+    def test_deploy_configures_cors_when_setup_cors_flag_provided(self, tmp_path):
+        """Test deploy command configures CORS when --setup-cors flag is provided."""
+        from src.command.deploy import deploy
+        from click.testing import CliRunner
+        
+        prod_dir = tmp_path / "prod" / "pics"
+        prod_dir.mkdir(parents=True)
+        
+        runner = CliRunner()
+        
+        with patch('src.command.deploy.validate_s3_config', return_value=(True, "")):
+            with patch('src.command.deploy.get_s3_client') as mock_get_client:
+                mock_client = Mock()
+                mock_get_client.return_value = mock_client
+                
+                with patch('src.command.deploy.examine_bucket_cors') as mock_cors:
+                    # Mock CORS as not configured
+                    mock_cors.return_value = {
+                        'success': True,
+                        'configured': False,
+                        'needs_update': True
+                    }
+                    
+                    with patch('src.command.deploy.configure_bucket_cors') as mock_configure:
+                        mock_configure.return_value = {'success': True}
+                        
+                        with patch('src.command.deploy.deploy_directory_to_s3') as mock_deploy:
+                            mock_deploy.return_value = {
+                                'success': True,
+                                'uploaded_files': 5,
+                                'skipped_files': 0,
+                                'total_files': 5
+                            }
+                            
+                            with patch.dict(sys.modules, {'settings': Mock(
+                                BASE_DIR=tmp_path,
+                                S3_PUBLIC_BUCKET="test-bucket",
+                                S3_PUBLIC_ENDPOINT="https://s3.example.com",
+                                S3_PUBLIC_ACCESS_KEY="test-key",
+                                S3_PUBLIC_SECRET_KEY="test-secret",
+                                S3_PUBLIC_REGION="us-east-1"
+                            )}):
+                                result = runner.invoke(deploy, ['--source', str(prod_dir), '--setup-cors'])
+                                
+                                # Should configure CORS and continue deployment
+                                assert "Configuring CORS rules..." in result.output
+                                assert "CORS Status: Configured successfully" in result.output
+                                assert "Deployment aborted" not in result.output
+                                mock_configure.assert_called_once()
+    
+    def test_deploy_exits_when_cors_examination_fails(self, tmp_path):
+        """Test deploy command exits when CORS examination fails."""
+        from src.command.deploy import deploy
+        from click.testing import CliRunner
+        
+        prod_dir = tmp_path / "prod" / "pics"
+        prod_dir.mkdir(parents=True)
+        
+        runner = CliRunner()
+        
+        with patch('src.command.deploy.validate_s3_config', return_value=(True, "")):
+            with patch('src.command.deploy.get_s3_client') as mock_get_client:
+                mock_client = Mock()
+                mock_get_client.return_value = mock_client
+                
+                with patch('src.command.deploy.examine_bucket_cors') as mock_cors:
+                    # Mock CORS examination failure
+                    mock_cors.return_value = {
+                        'success': False,
+                        'error': 'Access denied to bucket'
+                    }
+                    
+                    with patch.dict(sys.modules, {'settings': Mock(
+                        BASE_DIR=tmp_path,
+                        S3_PUBLIC_BUCKET="test-bucket",
+                        S3_PUBLIC_ENDPOINT="https://s3.example.com",
+                        S3_PUBLIC_ACCESS_KEY="test-key",
+                        S3_PUBLIC_SECRET_KEY="test-secret",
+                        S3_PUBLIC_REGION="us-east-1"
+                    )}):
+                        result = runner.invoke(deploy, ['--source', str(prod_dir)])
+                        
+                        assert result.exit_code == 1
+                        assert "CORS Status: Could not examine CORS: Access denied to bucket" in result.output
+                        assert "Deployment aborted: Unable to verify bucket configuration" in result.output

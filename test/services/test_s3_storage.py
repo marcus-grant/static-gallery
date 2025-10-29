@@ -18,7 +18,12 @@ from src.services.s3_storage import (
     upload_file_to_s3,
     list_bucket_files,
     upload_directory_to_s3,
-    modify_exif_in_memory
+    modify_exif_in_memory,
+    get_bucket_cors,
+    configure_bucket_cors,
+    get_default_gallery_cors_rules,
+    cors_rules_match,
+    examine_bucket_cors
 )
 
 
@@ -607,3 +612,141 @@ class TestExifModification:
         assert hash_est != hash_cet
         assert hash_est != hash_preserve
         assert hash_cet != hash_preserve
+
+
+class TestCORSConfiguration:
+    """Test CORS configuration functionality."""
+    
+    @pytest.fixture
+    def s3_client(self):
+        """Create mock S3 client."""
+        with mock_aws():
+            client = boto3.client('s3', region_name='us-east-1')
+            bucket_name = 'test-cors-bucket'
+            client.create_bucket(Bucket=bucket_name)
+            yield client, bucket_name
+    
+    def test_get_bucket_cors_no_configuration(self, s3_client):
+        """Test getting CORS when none is configured."""
+        client, bucket_name = s3_client
+        
+        result = get_bucket_cors(client, bucket_name)
+        
+        assert result['success']
+        assert result['cors_rules'] == []
+    
+    def test_configure_bucket_cors_success(self, s3_client):
+        """Test configuring CORS rules successfully."""
+        client, bucket_name = s3_client
+        
+        cors_rules = get_default_gallery_cors_rules()
+        result = configure_bucket_cors(client, bucket_name, cors_rules)
+        
+        assert result['success']
+        
+        # Verify rules were set
+        cors_result = get_bucket_cors(client, bucket_name)
+        assert cors_result['success']
+        assert len(cors_result['cors_rules']) == 1
+        
+        rule = cors_result['cors_rules'][0]
+        assert rule['AllowedMethods'] == ['GET', 'HEAD']
+        assert rule['AllowedOrigins'] == ['*']
+        assert rule['MaxAgeSeconds'] == 3600
+    
+    def test_get_default_gallery_cors_rules(self):
+        """Test default CORS rules for gallery."""
+        rules = get_default_gallery_cors_rules()
+        
+        assert len(rules) == 1
+        rule = rules[0]
+        
+        assert rule['AllowedHeaders'] == ['*']
+        assert rule['AllowedMethods'] == ['GET', 'HEAD']
+        assert rule['AllowedOrigins'] == ['*']
+        assert rule['ExposeHeaders'] == ['ETag']
+        assert rule['MaxAgeSeconds'] == 3600
+    
+    def test_cors_rules_match_identical(self):
+        """Test CORS rules matching with identical rules."""
+        rules1 = get_default_gallery_cors_rules()
+        rules2 = get_default_gallery_cors_rules()
+        
+        assert cors_rules_match(rules1, rules2)
+    
+    def test_cors_rules_match_different_methods(self):
+        """Test CORS rules matching with different methods."""
+        rules1 = get_default_gallery_cors_rules()
+        rules2 = get_default_gallery_cors_rules()
+        rules2[0]['AllowedMethods'] = ['GET', 'POST']
+        
+        assert not cors_rules_match(rules1, rules2)
+    
+    def test_cors_rules_match_different_origins(self):
+        """Test CORS rules matching with different origins."""
+        rules1 = get_default_gallery_cors_rules()
+        rules2 = get_default_gallery_cors_rules()
+        rules2[0]['AllowedOrigins'] = ['https://example.com']
+        
+        assert not cors_rules_match(rules1, rules2)
+    
+    def test_cors_rules_match_different_max_age(self):
+        """Test CORS rules matching with different MaxAgeSeconds."""
+        rules1 = get_default_gallery_cors_rules()
+        rules2 = get_default_gallery_cors_rules()
+        rules2[0]['MaxAgeSeconds'] = 7200
+        
+        assert not cors_rules_match(rules1, rules2)
+    
+    def test_cors_rules_match_different_count(self):
+        """Test CORS rules matching with different number of rules."""
+        rules1 = get_default_gallery_cors_rules()
+        rules2 = get_default_gallery_cors_rules() + get_default_gallery_cors_rules()
+        
+        assert not cors_rules_match(rules1, rules2)
+    
+    def test_examine_bucket_cors_not_configured(self, s3_client):
+        """Test examining bucket CORS when not configured."""
+        client, bucket_name = s3_client
+        
+        result = examine_bucket_cors(client, bucket_name)
+        
+        assert result['success']
+        assert not result['configured']
+        assert result['needs_update']
+        assert result['current_rules'] == []
+        assert len(result['expected_rules']) == 1
+    
+    def test_examine_bucket_cors_correctly_configured(self, s3_client):
+        """Test examining bucket CORS when correctly configured."""
+        client, bucket_name = s3_client
+        
+        # Configure CORS first
+        cors_rules = get_default_gallery_cors_rules()
+        configure_bucket_cors(client, bucket_name, cors_rules)
+        
+        result = examine_bucket_cors(client, bucket_name)
+        
+        assert result['success']
+        assert result['configured']
+        assert not result['needs_update']
+        assert len(result['current_rules']) == 1
+    
+    def test_examine_bucket_cors_needs_update(self, s3_client):
+        """Test examining bucket CORS when rules need updating."""
+        client, bucket_name = s3_client
+        
+        # Configure with different rules
+        wrong_rules = [{
+            'AllowedMethods': ['PUT', 'POST'],
+            'AllowedOrigins': ['https://example.com'],
+            'MaxAgeSeconds': 1800
+        }]
+        configure_bucket_cors(client, bucket_name, wrong_rules)
+        
+        result = examine_bucket_cors(client, bucket_name)
+        
+        assert result['success']
+        assert result['configured']
+        assert result['needs_update']
+        assert len(result['current_rules']) == 1

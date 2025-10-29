@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from src.command.upload_photos import validate_s3_config
-from src.services.s3_storage import get_s3_client
+from src.services.s3_storage import get_s3_client, examine_bucket_cors, configure_bucket_cors, get_default_gallery_cors_rules
 from src.services.deployment import deploy_directory_to_s3, deploy_gallery_metadata
 from src.models.photo import GalleryMetadata
 
@@ -50,7 +50,9 @@ def load_local_gallery_metadata(prod_dir: Path) -> GalleryMetadata:
               help='Upload only photos/metadata (skip static site)')
 @click.option('--site-only', 'mode_site', is_flag=True,
               help='Upload only static site files (skip photos)')
-def deploy(source, dry_run, force, progress, invalidate_cdn, mode_photos, mode_site):
+@click.option('--setup-cors', is_flag=True,
+              help='Configure bucket CORS rules for web access')
+def deploy(source, dry_run, force, progress, invalidate_cdn, mode_photos, mode_site, setup_cors):
     """Deploy complete gallery (photos + static site) to production hosting."""
     
     # Validate mutually exclusive options
@@ -88,14 +90,59 @@ def deploy(source, dry_run, force, progress, invalidate_cdn, mode_photos, mode_s
         click.echo(f"Error creating S3 client: {str(e)}", err=True)
         sys.exit(1)
     
+    # Examine bucket CORS configuration
+    click.echo(f"{'[DRY RUN] ' if dry_run else ''}Deploying gallery to S3...")
+    click.echo(f"Bucket: {settings.S3_PUBLIC_BUCKET}")
+    
+    cors_examination = examine_bucket_cors(client, settings.S3_PUBLIC_BUCKET)
+    cors_configured_properly = False
+    
+    if cors_examination['success']:
+        if cors_examination['configured'] and not cors_examination['needs_update']:
+            click.echo("CORS Status: Configured correctly for web access")
+            cors_configured_properly = True
+        elif cors_examination['configured'] and cors_examination['needs_update']:
+            click.echo("CORS Status: Configured but rules need updating")
+            if setup_cors:
+                click.echo("Updating CORS rules...")
+                cors_result = configure_bucket_cors(client, settings.S3_PUBLIC_BUCKET, get_default_gallery_cors_rules())
+                if cors_result['success']:
+                    click.echo("CORS Status: Updated successfully")
+                    cors_configured_properly = True
+                else:
+                    click.echo(f"CORS Error: {cors_result['error']}", err=True)
+                    sys.exit(1)
+            else:
+                click.echo("Use --setup-cors to update CORS rules")
+                click.echo("Deployment aborted: CORS configuration required for web access", err=True)
+                sys.exit(1)
+        else:
+            click.echo("CORS Status: Not configured for web access")
+            if setup_cors:
+                click.echo("Configuring CORS rules...")
+                cors_result = configure_bucket_cors(client, settings.S3_PUBLIC_BUCKET, get_default_gallery_cors_rules())
+                if cors_result['success']:
+                    click.echo("CORS Status: Configured successfully")
+                    cors_configured_properly = True
+                else:
+                    click.echo(f"CORS Error: {cors_result['error']}", err=True)
+                    sys.exit(1)
+            else:
+                click.echo("Use --setup-cors to configure CORS for web access")
+                click.echo("Deployment aborted: CORS configuration required for web access", err=True)
+                sys.exit(1)
+    else:
+        click.echo(f"CORS Status: Could not examine CORS: {cors_examination['error']}", err=True)
+        click.echo("Deployment aborted: Unable to verify bucket configuration", err=True)
+        sys.exit(1)
+    
     # Check if we have gallery metadata for enhanced deployment
     metadata_file = photos_dir / "gallery-metadata.json"
     use_metadata_deployment = metadata_file.exists() and not mode_site
     
     if use_metadata_deployment:
         # Enhanced metadata-driven deployment
-        click.echo(f"{'[DRY RUN] ' if dry_run else ''}Using metadata-driven deployment...")
-        click.echo(f"Bucket: {settings.S3_PUBLIC_BUCKET}")
+        click.echo(f"Using metadata-driven deployment...")
         
         try:
             local_metadata = load_local_gallery_metadata(photos_dir)
@@ -132,8 +179,7 @@ def deploy(source, dry_run, force, progress, invalidate_cdn, mode_photos, mode_s
     
     else:
         # Fallback to directory-based deployment
-        click.echo(f"{'[DRY RUN] ' if dry_run else ''}Using directory-based deployment...")
-        click.echo(f"Bucket: {settings.S3_PUBLIC_BUCKET}")
+        click.echo(f"Using directory-based deployment...")
         
         total_uploaded = 0
         total_files = 0
